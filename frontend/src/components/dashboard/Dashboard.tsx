@@ -126,59 +126,100 @@ function AccountCard({ account, showToast }: any) {
   const [amt, setAmt] = useState('10000');
   const [int, frac] = parseFloat(account.balance).toFixed(2).split('.');
 
+  const badgeColor = account.accountType === 'DEMO' ? 'bg-[#e6f6f0] text-[#03a66d]' : 'bg-[#e8f0fe] text-[#1c6ed4]';
+
   return (
-    <Card className="bg-white border border-gray-100 shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all">
-      <CardContent className="p-8">
-        <div className="flex justify-between mb-8">
-          <div className="flex items-center gap-2">
-            <span className={cn("px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest", account.accountType === 'DEMO' ? 'bg-[#f2f3f5] text-[#8b8e94]' : 'bg-[#e8f0fe] text-[#1c6ed4]')}>{account.accountType}</span>
-            <span className="bg-[#fff9e6] text-[#cc9600] px-2 py-0.5 rounded font-black text-[10px] uppercase">MT5</span>
-            <span className="text-[#1a1b20] font-black text-[13px]">#{account.accountNumber} Standard</span>
+    <Card className="bg-white border border-[#eef0f2] shadow-none rounded-[16px] overflow-hidden hover:shadow-lg transition-all group">
+      <CardContent className="p-0">
+        <div className="p-8">
+          <div className="flex justify-between mb-8">
+            <div className="flex items-center gap-2.5">
+              <span className={cn("px-2 py-0.5 rounded-[4px] text-[11px] font-bold capitalize", badgeColor)}>
+                {account.accountType === 'DEMO' ? 'Demo' : 'Real'}
+              </span>
+              <span className="bg-[#e6f6f0] text-[#03a66d] px-2 py-0.5 rounded-[4px] font-bold text-[11px]">
+                {account.platform || 'MT5'}
+              </span>
+              <span className="bg-[#e6f6f0] text-[#03a66d] px-2 py-0.5 rounded-[4px] font-bold text-[11px]">
+                Standard
+              </span>
+              <span className="text-[#1a1b20] font-bold text-[13px] ml-1">
+                #{account.accountNumber} Standard
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ChevronUp className="h-5 w-5 text-[#8b8e94]" /> 
+              {/* Added to replicate screenshot top right arrow/dots */}
+            </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger><MoreVertical className="h-5 w-5 text-[#8b8e94]" /></DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[200px] rounded-2xl shadow-2xl p-1.5 font-bold">
-               <DropdownMenuItem className="px-4 py-3 rounded-xl hover:bg-gray-50 flex gap-3"><Info className="size-4" /> Account Info</DropdownMenuItem>
-               <DropdownMenuItem onClick={() => fetchApi(`/accounts/${account.id}/archive`, { method: 'PATCH' }).then(() => window.location.reload())} className="px-4 py-3 rounded-xl hover:bg-red-50 text-red-600 flex gap-3"><Archive className="size-4" /> Archive</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+          <div className="flex items-end justify-between mb-8">
+            <div className="flex items-baseline gap-1">
+              <span className="text-[36px] font-bold tracking-tight text-[#1a1b20] leading-none">
+                {Number(int).toLocaleString()}
+              </span>
+              <span className="text-[18px] text-[#5f6368] font-bold">
+                .{frac} <span className="text-[14px] ml-0.5">USD</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2.5 bg-white">
+              <button onClick={() => window.open(`/terminal?accountId=${account.id}`, '_blank')} className="bg-[#ffce00] hover:bg-[#e6bb00] text-[#1a1b20] font-bold h-[40px] px-6 rounded-lg text-[13px] flex items-center gap-2 shadow-sm transition-all focus:outline-none">
+                <Layout className="h-4 w-4" /> Trade
+              </button>
+              {account.accountType === 'DEMO' && (
+                <button onClick={() => setShowBal(true)} className="bg-[#f2f3f5] hover:bg-[#e6e8eb] text-[#1a1b20] font-bold h-[40px] px-4 rounded-lg text-[13px] flex items-center gap-2 transition-all">
+                  <Settings className="h-4 w-4 text-[#1a1b20]" /> Set Balance
+                </button>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="bg-[#f2f3f5] hover:bg-[#e6e8eb] h-[40px] w-[40px] rounded-lg flex items-center justify-center transition-all">
+                   <MoreVertical className="h-4 w-4 text-[#1a1b20]" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[180px] rounded-xl shadow-xl p-1 border-[#eef0f2]">
+                   <DropdownMenuItem className="px-3 py-2.5 rounded-lg hover:bg-[#f2f3f5] font-semibold text-[13px] flex gap-2"><Info className="size-4" /> Account Info</DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => fetchApi(`/accounts/${account.id}/archive`, { method: 'PATCH' }).then(() => window.location.reload())} className="px-3 py-2.5 rounded-lg hover:bg-red-50 text-[#cf304a] font-semibold text-[13px] flex gap-2"><Archive className="size-4" /> Archive</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-12 gap-y-3 border-t border-[#eef0f2] pt-6 relative top-2">
+             {[ 
+               ['Actual leverage', `1:${account.leverage || 200}`], 
+               ['Free margin', `${parseFloat(account.freeMargin || account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`],
+               ['Adjust leverage', `1:${account.leverage || 200}`], 
+               ['Equity', `${parseFloat(account.equity || account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`],
+               ['Floating P/L', `0.00 USD`], 
+               ['Platform', account.platform || 'MT5'] 
+             ].map(([l, v], i) => (
+               <div key={i} className="flex items-end">
+                 <span className="text-[13px] text-[#5f6368] pb-0.5">{l}</span>
+                 <div className="flex-1 border-b-[2px] border-dotted border-[#d1d4dc] mx-2 mb-1 opacity-50" />
+                 <span className="text-[13px] font-bold text-[#1a1b20] pb-0.5">{v}</span>
+               </div>
+             ))}
+          </div>
         </div>
 
-        <div className="flex items-end justify-between mb-10">
-          <div className="flex items-baseline gap-1">
-            <span className="text-[44px] font-black leading-none">{Number(int).toLocaleString()}</span>
-            <span className="text-[18px] text-[#8b8e94] font-black">.{frac} <span className="text-[14px] ml-1">{account.baseCurrency}</span></span>
-          </div>
-          <div className="flex gap-3">
-            <button onClick={() => window.open(`/terminal?accountId=${account.id}`, '_blank')} className="bg-[#ffce00] hover:bg-[#e6bb00] font-black h-12 px-8 rounded-xl text-[14px] flex items-center gap-3"><Layout className="h-4.5 w-4.5" /> Trade</button>
-            {account.accountType === 'DEMO' && <button onClick={() => setShowBal(true)} className="bg-white hover:bg-gray-50 font-black h-12 px-6 rounded-xl border border-gray-200 text-[14px] flex items-center gap-3"><RefreshCw className="h-4.5 w-4.5 text-[#8b8e94]" /> Set Balance</button>}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-y-4 border-t border-gray-50 pt-8">
-           {[ ['Actual leverage', `1:${account.leverage || 200}`], ['Floating P/L', `0.00 ${account.baseCurrency}`], ['Free margin', `${parseFloat(account.freeMargin).toLocaleString()} ${account.baseCurrency}`], ['Equity', `${parseFloat(account.equity).toLocaleString()} ${account.baseCurrency}`] ].map(([l, v]) => (
-             <div key={l} className="flex items-center gap-4"><span className="text-[13px] font-bold text-[#8b8e94] w-28 line-clamp-1">{l}</span><span className="text-[13px] font-black">{v}</span></div>
-           ))}
+        <div className="bg-white px-8 h-[60px] flex items-center justify-between border-t border-[#eef0f2]">
+           <div className="flex gap-8 text-[12px]">
+              <span className="text-[#5f6368]">Server&nbsp;&nbsp;<span className="text-[#1a1b20] font-bold">Exness-MT5Trial11</span> <Copy className="inline h-3.5 w-3.5 ml-1 text-[#8b8e94] cursor-pointer" /></span>
+              <span className="text-[#5f6368]">MT5 login&nbsp;&nbsp;<span className="text-[#1a1b20] font-bold">{account.accountNumber}</span> <Copy className="inline h-3.5 w-3.5 ml-1 text-[#8b8e94] cursor-pointer" /></span>
+              <button className="flex items-center gap-1.5 text-[12px] font-bold text-[#1a1b20] ml-2 hover:underline"><Pencil className="h-3.5 w-3.5" /> Change trading password</button>
+           </div>
         </div>
       </CardContent>
-      <div className="bg-[#fcfcfd] px-8 py-5 flex items-center justify-between border-t border-gray-100">
-         <div className="flex gap-8 text-[12px] font-black">
-            <span className="text-[#8b8e94]">Server <span className="text-[#1a1b20] ml-1">Exness-MT5Trial11</span></span>
-            <span className="text-[#8b8e94]">MT5 login <span className="text-[#1a1b20] ml-1">{account.accountNumber}</span></span>
-         </div>
-         <button className="flex items-center gap-2 text-[12px] font-black hover:underline"><Pencil className="h-3.5 w-3.5" /> Change trading password</button>
-      </div>
 
       <Dialog open={showBal} onOpenChange={setShowBal}>
         <DialogContent className="sm:max-w-[400px] rounded-3xl p-8 border-none shadow-2xl">
           <DialogTitle className="text-[24px] font-black mb-6">Set balance</DialogTitle>
           <div className="space-y-6">
-            <Input type="number" value={amt} onChange={e => setAmt(e.target.value)} className="h-14 bg-gray-50 border-none rounded-2xl text-[20px] font-black px-6" />
+            <Input type="number" value={amt} onChange={e => setAmt(e.target.value)} className="h-14 bg-[#f2f3f5] border-none rounded-2xl text-[20px] font-bold px-6" />
             <div className="bg-[#fef9e7] rounded-2xl p-4 flex gap-3 text-[13px] font-medium"><Info className="h-5 w-5 text-[#ffce00] shrink-0" /> Changes apply instantly.</div>
           </div>
           <DialogFooter className="mt-8 flex gap-3">
-            <Button variant="ghost" onClick={() => setShowBal(false)} className="flex-1 h-14 rounded-2xl font-black">Cancel</Button>
-            <Button onClick={() => fetchApi(`/accounts/${account.id}/balance`, { method: 'PATCH', body: JSON.stringify({ balance: parseFloat(amt) }) }).then(() => window.location.reload())} className="flex-1 h-14 rounded-2xl bg-[#ffce00] text-[#1a1b20] font-black">Set balance</Button>
+            <Button variant="ghost" onClick={() => setShowBal(false)} className="flex-1 h-12 rounded-xl font-bold bg-[#f2f3f5] hover:bg-[#e6e8eb]">Cancel</Button>
+            <Button onClick={() => fetchApi(`/accounts/${account.id}/balance`, { method: 'PATCH', body: JSON.stringify({ balance: parseFloat(amt) }) }).then(() => window.location.reload())} className="flex-1 h-12 rounded-xl bg-[#ffce00] hover:bg-[#e6bb00] text-[#1a1b20] font-bold">Set balance</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
