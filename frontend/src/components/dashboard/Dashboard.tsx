@@ -14,6 +14,7 @@ import { useUi } from '../../contexts/UiContext';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
+  DropdownMenuGroup,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
