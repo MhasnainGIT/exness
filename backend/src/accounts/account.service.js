@@ -122,4 +122,33 @@ const renameAccount = async (userId, accountId, name) => {
   return prisma.tradingAccount.update({ where: { id: accountId }, data: { name } });
 };
 
-module.exports = { createAccount, listAccounts, getAccount, updateLeverage, renameAccount, getAccountSummary };
+const archiveAccount = async (userId, accountId) => {
+  const account = await prisma.tradingAccount.findFirst({ where: { id: accountId, userId } });
+  if (!account) {
+    const error = new Error("Account not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const openPositions = await prisma.position.count({ where: { tradingAccountId: accountId, status: "OPEN" } });
+  if (openPositions > 0) {
+    const error = new Error("Cannot archive account while positions are open");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return prisma.tradingAccount.update({ where: { id: accountId }, data: { status: "CLOSED", canTrade: false } });
+};
+
+const restoreAccount = async (userId, accountId) => {
+  const account = await prisma.tradingAccount.findFirst({ where: { id: accountId, userId } });
+  if (!account) {
+    const error = new Error("Account not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return prisma.tradingAccount.update({ where: { id: accountId }, data: { status: "ACTIVE", canTrade: true } });
+};
+
+module.exports = { createAccount, listAccounts, getAccount, updateLeverage, renameAccount, archiveAccount, restoreAccount, getAccountSummary };

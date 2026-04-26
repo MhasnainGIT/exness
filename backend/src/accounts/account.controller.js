@@ -21,9 +21,14 @@ const updateLeverage = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
-const renameAccount = asyncHandler(async (req, res) => {
-  const data = await accountService.renameAccount(req.user.id, req.params.accountId, req.body.name);
+const archiveAccount = asyncHandler(async (req, res) => {
+  const data = await accountService.archiveAccount(req.user.id, req.params.accountId);
   res.json({ success: true, data });
 });
 
-module.exports = { create, list, getOne, updateLeverage, renameAccount };
+const restoreAccount = asyncHandler(async (req, res) => {
+  const data = await accountService.restoreAccount(req.user.id, req.params.accountId);
+  res.json({ success: true, data });
+});
+
+module.exports = { create, list, getOne, updateLeverage, renameAccount, archiveAccount, restoreAccount };

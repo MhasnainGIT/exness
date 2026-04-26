@@ -2,7 +2,7 @@ const express = require("express");
 const { body } = require("express-validator");
 const { authenticate } = require("../middleware/authenticate");
 const { validateRequest } = require("../middleware/validate");
-const { create, list, getOne, updateLeverage, renameAccount } = require("./account.controller");
+const { create, list, getOne, updateLeverage, renameAccount, archiveAccount, restoreAccount } = require("./account.controller");
 
 const router = express.Router();
 
@@ -34,5 +34,8 @@ router.patch(
   [body("name").isString().trim().isLength({ min: 1, max: 50 }), validateRequest],
   renameAccount,
 );
+
+router.patch("/:accountId/archive", archiveAccount);
+router.patch("/:accountId/restore", restoreAccount);
 
 module.exports = { accountRoutes: router };

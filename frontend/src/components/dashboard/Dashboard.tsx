@@ -220,32 +220,49 @@ export function Dashboard() {
             <h2 className="text-[20px] font-black text-[#1a1b20]">Archived accounts</h2>
             <Info className="h-4 w-4 text-[#8b8e94]" />
           </div>
-          <button className="text-[13px] font-bold text-[#1a1b20] flex items-center gap-2 hover:underline">
-            Hide accounts <ChevronUp className="h-4 w-4" />
-          </button>
         </div>
 
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm group/arch">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="bg-gray-100 text-[#8b8e94] px-2 py-0.5 rounded text-[10px] font-black uppercase">Real</span>
-            <span className="bg-gray-100 text-[#8b8e94] px-2 py-0.5 rounded text-[10px] font-black uppercase">MT5</span>
-            <span className="bg-gray-100 text-[#8b8e94] px-2 py-0.5 rounded text-[10px] font-black uppercase">Standard</span>
-            <span className="text-[13px] font-black text-[#1a1b20] ml-2"># 196450149</span>
-            <span className="text-[13px] font-bold text-[#8b8e94] ml-2">Standard</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-[15px] font-bold text-[#1a1b20]">Balance unavailable</span>
-              <span className="text-[12px] text-[#8b8e94]">This account was archived automatically on 20 Apr 2026 at 05:16 (UTC+5.5)</span>
+        <div className="space-y-4">
+          {accounts.filter(a => a.status === 'CLOSED').length === 0 ? (
+            <div className="text-center py-8 border border-dashed border-gray-200 rounded-2xl text-gray-400 text-[13px] font-medium">
+               No archived accounts
             </div>
-            <button 
-              onClick={() => showToast('Restoring account...', 'info')}
-              className="h-10 px-6 bg-gray-50 hover:bg-gray-100 text-[#1a1b20] font-black text-[13px] rounded-lg border border-gray-100 transition-all flex items-center gap-2"
-            >
-              <RefreshCw className="h-3.5 w-3.5" /> Restore
-            </button>
-          </div>
+          ) : (
+            accounts.filter(a => a.status === 'CLOSED').map(acc => (
+              <div key={acc.id} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm group/arch">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${acc.accountType === 'DEMO' ? 'bg-gray-100 text-[#8b8e94]' : 'bg-[#e8f0fe] text-[#1c6ed4]'}`}>
+                    {acc.accountType}
+                  </span>
+                  <span className="bg-gray-100 text-[#8b8e94] px-2 py-0.5 rounded text-[10px] font-black uppercase">{acc.platform || 'MT5'}</span>
+                  <span className="bg-gray-100 text-[#8b8e94] px-2 py-0.5 rounded text-[10px] font-black uppercase">Standard</span>
+                  <span className="text-[13px] font-black text-[#1a1b20] ml-2"># {acc.accountNumber}</span>
+                  {acc.name && <span className="text-[13px] font-bold text-[#8b8e94] ml-2">{acc.name}</span>}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[15px] font-bold text-[#1a1b20]">{parseFloat(acc.balance).toLocaleString()} {acc.baseCurrency}</span>
+                    <span className="text-[12px] text-[#8b8e94]">Account archived</span>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        await fetchApi(`/accounts/${acc.id}/restore`, { method: 'PATCH' });
+                        showToast('Account restored!', 'success');
+                        window.location.reload();
+                      } catch (e: any) {
+                        showToast(e.message || 'Failed to restore', 'error');
+                      }
+                    }}
+                    className="h-10 px-6 bg-gray-50 hover:bg-gray-100 text-[#1a1b20] font-black text-[13px] rounded-lg border border-gray-100 transition-all flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Restore
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -395,6 +412,21 @@ function AccountCard({
     }
   };
 
+  const handleArchive = async () => {
+    setIsUpdating(true);
+    try {
+      await fetchApi(`/accounts/${account.id}/archive`, {
+        method: 'PATCH',
+      });
+      showToast('Account archived successfully', 'success');
+      window.location.reload();
+    } catch (e: any) {
+      showToast(e.message || 'Failed to archive account', 'error');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const handleUpdateLeverage = async () => {
     setIsUpdating(true);
     try {
@@ -451,8 +483,12 @@ function AccountCard({
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator className="bg-gray-50" />
-                  <DropdownMenuItem onClick={() => showToast('Archiving...', 'info')} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-bold text-red-600 cursor-pointer hover:bg-red-50">
-                    <Archive className="h-4 w-4" strokeWidth={2.5} /> Archive Account
+                  <DropdownMenuItem 
+                    disabled={isUpdating}
+                    onClick={handleArchive} 
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-bold text-red-600 cursor-pointer hover:bg-red-50 disabled:opacity-50"
+                  >
+                    <Archive className="h-4 w-4" strokeWidth={2.5} /> {isUpdating ? 'Archiving...' : 'Archive Account'}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
