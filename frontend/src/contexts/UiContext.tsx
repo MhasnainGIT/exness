@@ -118,14 +118,14 @@ export function UiProvider({ children }: { children: ReactNode }) {
       {internalTransferOpen && <InternalTransferModal onClose={() => setInternalTransferOpen(false)} />}
 
       {/* Toast Container */}
-      <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-3">
+      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3">
         {toasts.map((toast) => (
-          <div key={toast.id} className="bg-sleek-panel border border-sleek-border shadow-2xl rounded-lg p-4 flex items-center gap-3 w-80 animate-in slide-in-from-right fade-in">
-            {toast.type === 'success' && <CheckCircle2 className="h-5 w-5 text-sleek-green shrink-0" />}
-            {toast.type === 'error' && <AlertCircle className="h-5 w-5 text-sleek-red shrink-0" />}
-            {toast.type === 'info' && <Info className="h-5 w-5 text-sleek-gold shrink-0" />}
-            <p className="text-sm text-sleek-text font-medium flex-1 leading-snug">{toast.message}</p>
-            <button onClick={() => removeToast(toast.id)} className="text-sleek-muted hover:text-white transition-colors">
+          <div key={toast.id} className="bg-white dark:bg-exness-panel border border-gray-200 dark:border-exness-border shadow-2xl rounded-xl p-4 flex items-center gap-3 w-80 animate-in slide-in-from-right duration-300 fade-in">
+            {toast.type === 'success' && <CheckCircle2 className="h-5 w-5 text-exness-green shrink-0" />}
+            {toast.type === 'error' && <AlertCircle className="h-5 w-5 text-exness-red shrink-0" />}
+            {toast.type === 'info' && <Info className="h-5 w-5 text-exness-yellow shrink-0" />}
+            <p className="text-[13px] text-gray-900 dark:text-white font-bold flex-1 leading-tight">{toast.message}</p>
+            <button onClick={() => removeToast(toast.id)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
