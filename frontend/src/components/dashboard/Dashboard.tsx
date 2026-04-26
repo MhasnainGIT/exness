@@ -433,22 +433,22 @@ function AccountCard({
               </div>
               
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="h-8 w-8 flex items-center justify-center text-[#8b8e94] hover:bg-gray-50 rounded-lg transition-colors">
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
+                <DropdownMenuTrigger className="h-8 w-8 flex items-center justify-center text-[#8b8e94] hover:bg-gray-50 rounded-lg transition-colors outline-none">
+                  <MoreVertical className="h-4 w-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[200px] rounded-xl shadow-xl border-gray-100 p-1">
-                  <DropdownMenuLabel className="text-[11px] font-black uppercase text-[#8b8e94] px-3 py-2">Account Options</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => setShowInfo(true)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-bold text-[#1a1b20] cursor-pointer hover:bg-gray-50">
-                    <Info className="h-4 w-4" strokeWidth={2.5} /> Account Information
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowLeverage(true)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-bold text-[#1a1b20] cursor-pointer hover:bg-gray-50">
-                    <Settings className="h-4 w-4" strokeWidth={2.5} /> Change Leverage
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowRename(true)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-bold text-[#1a1b20] cursor-pointer hover:bg-gray-50">
-                    <Pencil className="h-4 w-4" strokeWidth={2.5} /> Rename Account
-                  </DropdownMenuItem>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="text-[11px] font-black uppercase text-[#8b8e94] px-3 py-2">Account Options</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => setShowInfo(true)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-bold text-[#1a1b20] cursor-pointer hover:bg-gray-50">
+                      <Info className="h-4 w-4" strokeWidth={2.5} /> Account Information
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowLeverage(true)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-bold text-[#1a1b20] cursor-pointer hover:bg-gray-50">
+                      <Settings className="h-4 w-4" strokeWidth={2.5} /> Change Leverage
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShowRename(true)} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-bold text-[#1a1b20] cursor-pointer hover:bg-gray-50">
+                      <Pencil className="h-4 w-4" strokeWidth={2.5} /> Rename Account
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
                   <DropdownMenuSeparator className="bg-gray-50" />
                   <DropdownMenuItem onClick={() => showToast('Archiving...', 'info')} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-bold text-red-600 cursor-pointer hover:bg-red-50">
                     <Archive className="h-4 w-4" strokeWidth={2.5} /> Archive Account
