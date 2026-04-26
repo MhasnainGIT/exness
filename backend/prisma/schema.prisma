@@ -1,0 +1,344 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum KycStatus {
+  NOT_STARTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum AccountType {
+  DEMO
+  LIVE
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum WalletType {
+  FIAT
+  CRYPTO
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  INTERNAL_TRANSFER
+  TRADE_PNL
+  COMMISSION
+  SWAP
+  ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REJECTED
+}
+
+enum InstrumentType {
+  FOREX
+  METAL
+  CRYPTO
+  INDEX
+  ENERGY
+  STOCK
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  MARKET
+  LIMIT
+  STOP
+}
+
+enum OrderStatus {
+  PENDING
+  FILLED
+  CANCELLED
+  REJECTED
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSED
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  phone           String?
+  country         String?
+  role            UserRole         @default(USER)
+  kycStatus       KycStatus        @default(NOT_STARTED)
+  isEmailVerified Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  lastLoginAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  sessions            Session[]
+  wallets             Wallet[]
+  tradingAccounts     TradingAccount[]
+  orders              Order[]
+  positions           Position[]
+  auditLogs           AuditLog[]
+  walletTransactions  WalletTransaction[]
+  notifications       Notification[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  refreshToken String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Wallet {
+  id           String        @id @default(uuid())
+  userId       String
+  currency     String
+  type         WalletType    @default(FIAT)
+  balance      Decimal       @db.Decimal(18, 2)
+  credit       Decimal       @default(0) @db.Decimal(18, 2)
+  isPrimary    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions      WalletTransaction[]
+  tradingAccounts   TradingAccount[]
+
+  @@unique([userId, currency, type])
+  @@index([userId])
+}
+
+model WalletTransaction {
+  id               String            @id @default(uuid())
+  walletId         String
+  userId           String
+  tradingAccountId String?
+  type             TransactionType
+  status           TransactionStatus @default(PENDING)
+  amount           Decimal           @db.Decimal(18, 2)
+  fee              Decimal           @default(0) @db.Decimal(18, 2)
+  reference        String            @unique
+  description      String?
+  metadata         Json?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  wallet           Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tradingAccount   TradingAccount?   @relation(fields: [tradingAccountId], references: [id], onDelete: SetNull)
+
+  @@index([walletId, createdAt])
+  @@index([userId, createdAt])
+  @@index([tradingAccountId])
+}
+
+model TradingAccount {
+  id            String        @id @default(uuid())
+  userId        String
+  walletId      String?
+  accountNumber String        @unique
+  accountType   AccountType
+  platform      String        @default("webtrader")
+  leverage      Int           @default(200)
+  baseCurrency  String        @default("USD")
+  status        AccountStatus @default(ACTIVE)
+  balance       Decimal       @db.Decimal(18, 2)
+  equity        Decimal       @db.Decimal(18, 2)
+  margin        Decimal       @default(0) @db.Decimal(18, 2)
+  freeMargin    Decimal       @db.Decimal(18, 2)
+  marginLevel   Decimal       @default(0) @db.Decimal(18, 2)
+  canTrade      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet        Wallet?       @relation(fields: [walletId], references: [id], onDelete: SetNull)
+  transactions  WalletTransaction[]
+  orders        Order[]
+  positions     Position[]
+
+  @@index([userId])
+  @@index([walletId])
+}
+
+model Instrument {
+  id                 String         @id @default(uuid())
+  symbol             String         @unique
+  displayName        String
+  description        String?
+  type               InstrumentType
+  baseCurrency       String?
+  quoteCurrency      String?
+  contractSize       Decimal        @default(1) @db.Decimal(18, 4)
+  minLot             Decimal        @default(0.01) @db.Decimal(18, 2)
+  maxLot             Decimal        @default(100) @db.Decimal(18, 2)
+  lotStep            Decimal        @default(0.01) @db.Decimal(18, 2)
+  leverageCap        Int            @default(200)
+  marginRequirement  Decimal        @default(0.5) @db.Decimal(10, 4)
+  spread             Decimal        @default(0.0002) @db.Decimal(18, 5)
+  bid                Decimal        @default(0) @db.Decimal(18, 5)
+  ask                Decimal        @default(0) @db.Decimal(18, 5)
+  swapLong           Decimal        @default(0) @db.Decimal(10, 4)
+  swapShort          Decimal        @default(0) @db.Decimal(10, 4)
+  isActive           Boolean        @default(true)
+  tradingHours       Json?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  ticks              PriceTick[]
+  orders             Order[]
+  positions          Position[]
+
+  @@index([type, isActive])
+}
+
+model PriceTick {
+  id           String     @id @default(uuid())
+  instrumentId String
+  symbol       String
+  bid          Decimal    @db.Decimal(18, 5)
+  ask          Decimal    @db.Decimal(18, 5)
+  spread       Decimal    @db.Decimal(18, 5)
+  source       String     @default("seed")
+  timestamp    DateTime   @default(now())
+  instrument   Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+
+  @@index([instrumentId, timestamp])
+  @@index([symbol, timestamp])
+}
+
+model Order {
+  id               String         @id @default(uuid())
+  userId           String
+  tradingAccountId String
+  instrumentId     String
+  orderNumber      String         @unique
+  side             OrderSide
+  type             OrderType
+  status           OrderStatus    @default(PENDING)
+  volumeLots       Decimal        @db.Decimal(10, 2)
+  requestedPrice   Decimal?       @db.Decimal(18, 5)
+  executedPrice    Decimal?       @db.Decimal(18, 5)
+  stopLoss         Decimal?       @db.Decimal(18, 5)
+  takeProfit       Decimal?       @db.Decimal(18, 5)
+  marginUsed       Decimal        @default(0) @db.Decimal(18, 2)
+  rejectionReason  String?
+  metadata         Json?
+  placedAt         DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tradingAccount   TradingAccount @relation(fields: [tradingAccountId], references: [id], onDelete: Cascade)
+  instrument       Instrument     @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  position         Position?
+
+  @@index([userId, placedAt])
+  @@index([tradingAccountId, status])
+  @@index([instrumentId, status])
+}
+
+model Position {
+  id               String         @id @default(uuid())
+  userId           String
+  tradingAccountId String
+  instrumentId     String
+  orderId          String?        @unique
+  positionNumber   String         @unique
+  side             OrderSide
+  status           PositionStatus @default(OPEN)
+  volumeLots       Decimal        @db.Decimal(10, 2)
+  openPrice        Decimal        @db.Decimal(18, 5)
+  closePrice       Decimal?       @db.Decimal(18, 5)
+  stopLoss         Decimal?       @db.Decimal(18, 5)
+  takeProfit       Decimal?       @db.Decimal(18, 5)
+  swap             Decimal        @default(0) @db.Decimal(18, 2)
+  commission       Decimal        @default(0) @db.Decimal(18, 2)
+  profitLoss       Decimal        @default(0) @db.Decimal(18, 2)
+  marginUsed       Decimal        @default(0) @db.Decimal(18, 2)
+  openedAt         DateTime       @default(now())
+  closedAt         DateTime?
+  updatedAt        DateTime       @updatedAt
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tradingAccount   TradingAccount @relation(fields: [tradingAccountId], references: [id], onDelete: Cascade)
+  instrument       Instrument     @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([tradingAccountId, status])
+  @@index([instrumentId, status])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String   // trade, deposit, withdrawal, kyc, system, margin_call
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+model OhlcCandle {
+  id           String   @id @default(uuid())
+  symbol       String
+  timeframe    String   // 1M, 5M, 15M, 30M, 1H, 4H, 1D
+  time         DateTime
+  open         Decimal  @db.Decimal(18, 5)
+  high         Decimal  @db.Decimal(18, 5)
+  low          Decimal  @db.Decimal(18, 5)
+  close        Decimal  @db.Decimal(18, 5)
+  volume       Int      @default(0)
+
+  @@unique([symbol, timeframe, time])
+  @@index([symbol, timeframe, time])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  actorEmail  String?
+  action      String
+  entityType  String
+  entityId    String
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
