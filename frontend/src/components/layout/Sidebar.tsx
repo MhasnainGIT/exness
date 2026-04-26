@@ -59,6 +59,35 @@ const navItems: NavSection[] = [
       { title: 'Economic Calendar', href: '/economic-calendar', external: true },
     ],
   },
+  {
+    title: 'Exness benefits',
+    icon: Award,
+    children: [
+      { title: 'Trading Conditions', href: '/trading-conditions' },
+      { title: 'Savings', href: '/savings' },
+      { title: 'Virtual Private Server', href: '/vps' },
+    ],
+  },
+  {
+    title: 'Copy Trading',
+    icon: Layout,
+    href: '/copy-trading'
+  },
+  {
+    title: 'Support hub',
+    icon: Heart,
+    href: '/support',
+    badge: 'New'
+  },
+  {
+    title: 'Settings',
+    icon: Settings,
+    children: [
+      { title: 'Profile', href: '/profile' },
+      { title: 'Security', href: '/security' },
+      { title: 'Trading Terminal', href: '/terminal', external: true },
+    ],
+  },
 ];
 
 export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
@@ -117,6 +146,11 @@ export function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     <section.icon className={cn("h-[18px] w-[18px] stroke-[1.8] flex-shrink-0", active ? "text-[#5b3e9e]" : "text-[#8b8e94]")} />
                     <span>{section.title}</span>
                   </div>
+                  {section.badge && (
+                    <span className="bg-[#e8f0fe] text-[#1c6ed4] text-[10px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                      {section.badge}
+                    </span>
+                  )}
                 </button>
               </div>
             );

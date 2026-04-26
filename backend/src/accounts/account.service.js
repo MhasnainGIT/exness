@@ -151,4 +151,24 @@ const restoreAccount = async (userId, accountId) => {
   return prisma.tradingAccount.update({ where: { id: accountId }, data: { status: "ACTIVE", canTrade: true } });
 };
 
-module.exports = { createAccount, listAccounts, getAccount, updateLeverage, renameAccount, archiveAccount, restoreAccount, getAccountSummary };
+const setBalance = async (userId, accountId, balance) => {
+  const account = await prisma.tradingAccount.findFirst({ where: { id: accountId, userId } });
+  if (!account) {
+    const error = new Error("Account not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (account.accountType !== "DEMO") {
+    const error = new Error("Balance can only be manually set for DEMO accounts");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return prisma.tradingAccount.update({
+    where: { id: accountId },
+    data: { balance, equity: balance, freeMargin: balance },
+  });
+};
+
+module.exports = { createAccount, listAccounts, getAccount, updateLeverage, renameAccount, archiveAccount, restoreAccount, setBalance, getAccountSummary };

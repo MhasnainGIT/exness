@@ -2,7 +2,7 @@ const express = require("express");
 const { body } = require("express-validator");
 const { authenticate } = require("../middleware/authenticate");
 const { validateRequest } = require("../middleware/validate");
-const { create, list, getOne, updateLeverage, renameAccount, archiveAccount, restoreAccount } = require("./account.controller");
+const { create, list, getOne, updateLeverage, renameAccount, archiveAccount, restoreAccount, setBalance } = require("./account.controller");
 
 const router = express.Router();
 
@@ -37,5 +37,6 @@ router.patch(
 
 router.patch("/:accountId/archive", archiveAccount);
 router.patch("/:accountId/restore", restoreAccount);
+router.patch("/:accountId/balance", setBalance);
 
 module.exports = { accountRoutes: router };

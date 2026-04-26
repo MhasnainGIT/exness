@@ -31,4 +31,9 @@ const restoreAccount = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
-module.exports = { create, list, getOne, updateLeverage, renameAccount, archiveAccount, restoreAccount };
+const setBalance = asyncHandler(async (req, res) => {
+  const data = await accountService.setBalance(req.user.id, req.params.accountId, req.body.balance);
+  res.json({ success: true, data });
+});
+
+module.exports = { create, list, getOne, updateLeverage, renameAccount, archiveAccount, restoreAccount, setBalance };
