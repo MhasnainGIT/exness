@@ -51,6 +51,8 @@ setInterval(async () => {
 
 // Called every second from the price engine with latest bid/ask per symbol
 function updateCandles(symbol, bid, ask) {
+  if (!bid || !ask || isNaN(bid) || isNaN(ask) || bid <= 0 || ask <= 0) return {};
+
   const mid = roundPrice((bid + ask) / 2, 5);
   const now = Date.now();
 
@@ -73,14 +75,23 @@ function updateCandles(symbol, bid, ask) {
           where: { symbol_timeframe_time: { symbol, timeframe: tf, time: barTime } }
        }).then(existing => {
           if (existing && candleBuffer.get(key) === candle) {
-             candle.open = Number(existing.open);
-             candle.high = Math.max(Number(existing.high), candle.high);
-             candle.low = Math.min(Number(existing.low), candle.low);
+             const exOpen = Number(existing.open) || mid;
+             const exHigh = Number(existing.high) || mid;
+             const exLow = Number(existing.low) || mid;
+             
+             candle.open = exOpen;
+             candle.high = Math.max(exHigh, candle.high);
+             // Prevent legacy zero-values in DB from dragging down the live chart low
+             candle.low = exLow > 0 ? Math.min(exLow, candle.low) : candle.low;
              candle.volume = existing.volume + candle.volume;
              candle.isDirty = true;
           }
        }).catch(() => {});
     } else {
+      // Outlier protection: reject single ticks that deviate more than 20% from the open price (flash crash / bad exchange data)
+      const deviation = Math.abs(mid - candle.open) / candle.open;
+      if (deviation > 0.20) return;
+
       candle.high = Math.max(candle.high, mid);
       candle.low = Math.min(candle.low, mid);
       candle.close = mid;
@@ -130,14 +141,26 @@ async function getCandles(symbol, timeframe = "1H", limit = 200) {
     take: Math.min(Number(limit), 500),
   });
 
-  return candles.reverse().map((c) => ({
-    time: Math.floor(new Date(c.time).getTime() / 1000),
-    open:   Number(c.open),
-    high:   Number(c.high),
-    low:    Number(c.low),
-    close:  Number(c.close),
-    volume: c.volume,
-  }));
+  return candles.reverse().map((c) => {
+    // Sanitize any corrupt database rows so they don't break the frontend chart
+    const open = Number(c.open);
+    const close = Number(c.close);
+    let low = Number(c.low);
+    let high = Number(c.high);
+
+    // If the low drops down to zero or highly anomalous (< 50% of open price), snap it back
+    if (low <= 0 || low < open * 0.5) low = Math.min(open, close);
+    if (high > open * 2) high = Math.max(open, close);
+
+    return {
+      time: Math.floor(new Date(c.time).getTime() / 1000),
+      open,
+      high,
+      low,
+      close,
+      volume: c.volume,
+    };
+  });
 }
 
 module.exports = { updateCandles, getCandles, bulkUpsertCandles, TIMEFRAMES };

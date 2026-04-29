@@ -256,6 +256,11 @@ export const TradingChart = forwardRef<any, ChartProps>((props, ref) => {
     }
 
     const current = activeCandleRef.current;
+
+    // Bulletproof safety against frontend processing 0 or wild ticks
+    if (!livePrice.bid || isNaN(livePrice.bid) || livePrice.bid <= 0) return;
+    if (Math.abs(livePrice.bid - current.open) / current.open > 0.10) return;
+
     current.high = Math.max(current.high, livePrice.bid);
     current.low = Math.min(current.low, livePrice.bid);
     current.close = livePrice.bid;

@@ -133,6 +133,17 @@ class PriceService extends EventEmitter {
         timestamp: Date.now()
       };
 
+      // SANITIZATION: Drop bad websocket ticks (zeros or NaNs) immediately
+      if (!priceData.bid || !priceData.ask || isNaN(priceData.bid) || priceData.bid <= 0) return;
+
+      // Outlier Protection: Reject flash spikes > 10% comparing bid to last known good price
+      const lastKnown = this.getLivePrice(symbol);
+      if (lastKnown && lastKnown.bid > 0) {
+         if (Math.abs(priceData.bid - lastKnown.bid) / lastKnown.bid > 0.10) {
+            return; // Ignore ridiculous flash crashes/spikes
+         }
+      }
+
       // Propagate to WebSocket cache if available
       if (this.priceCache) {
         this.priceCache.set(symbol, {

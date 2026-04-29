@@ -144,7 +144,7 @@ export function Terminal() {
       const pendRes = await fetchApi(`/trading/orders/history?status=PENDING&limit=50`);
       setPending(Array.isArray(pendRes) ? pendRes : pendRes.data || []);
       
-      const fillRes = await fetchApi(`/trading/orders/history?status=FILLED&limit=50`);
+      const fillRes = await fetchApi(`/trading/positions/history?accountId=${account.id}`);
       setHistory(Array.isArray(fillRes) ? fillRes : fillRes.data || []);
     } catch (err) {
       console.error('Failed to refresh trading data:', err);
@@ -172,14 +172,21 @@ export function Terminal() {
     return positions.map(pos => {
       const symbol = pos.instrumentSymbol || pos.symbol || pos.instrument?.symbol || 'UNKNOWN';
       const entryPrice = parseFloat(pos.entryPrice || pos.openPrice || 0);
-      const currentPrice = prices[symbol]?.bid || livePrice.bid;
+      
+      const liveBid = prices[symbol]?.bid || livePrice.bid;
+      const liveAsk = prices[symbol]?.ask || livePrice.ask;
+      
       const side = pos.side;
       const volumeLots = parseFloat(pos.volumeLots || 0);
       // Get contractSize from the instrument list — fall back to 100000 (standard forex lot)
       const instrument = instruments.find((i: any) => i.symbol === symbol);
-      const contractSize = parseFloat(instrument?.contractSize || '100000');
-      const diff = side === 'BUY' ? (currentPrice - entryPrice) : (entryPrice - currentPrice);
+      const contractSize = instrument?.contractSize ? parseFloat(instrument.contractSize) : (pos.instrument?.contractSize ? parseFloat(pos.instrument.contractSize) : 100000);
+      
+      const exitPrice = side === 'BUY' ? liveBid : liveAsk;
+      const currentPrice = exitPrice;
+      const diff = side === 'BUY' ? (exitPrice - entryPrice) : (entryPrice - exitPrice);
       const profit = diff * volumeLots * contractSize;
+      
       return { ...pos, symbol, entryPrice, currentPrice, profit };
     });
   }, [positions, prices, livePrice, instruments]);

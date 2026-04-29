@@ -36,12 +36,17 @@ export function OrdersHistoryPage() {
 
   useEffect(() => {
     if (!selectedAccountId) return;
-    setLoading(true);
-    const statusParam = tab === 'closed' ? 'FILLED' : 'PENDING';
-    fetchApi(`/trading/orders/history?status=${statusParam}&accountId=${selectedAccountId}&limit=50`)
-      .then((res) => setOrders(Array.isArray(res) ? res : res?.data || []))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    if (tab === 'closed') {
+      fetchApi(`/trading/positions/history?accountId=${selectedAccountId}&limit=50`)
+        .then((res) => setOrders(Array.isArray(res) ? res : res?.data || []))
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    } else {
+      fetchApi(`/trading/orders/history?status=PENDING&accountId=${selectedAccountId}&limit=50`)
+        .then((res) => setOrders(Array.isArray(res) ? res : res?.data || []))
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
   }, [selectedAccountId, tab]);
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId);

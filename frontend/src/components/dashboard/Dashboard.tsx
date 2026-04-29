@@ -123,10 +123,13 @@ export function Dashboard() {
 
 function AccountCard({ account, showToast }: any) {
   const [showBal, setShowBal] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [amt, setAmt] = useState('10000');
   const [int, frac] = parseFloat(account.balance).toFixed(2).split('.');
 
   const badgeColor = account.accountType === 'DEMO' ? 'bg-[#e6f6f0] text-[#03a66d]' : 'bg-[#e8f0fe] text-[#1c6ed4]';
+
+  const floatingPL = parseFloat(account.equity || account.balance) - parseFloat(account.balance);
 
   return (
     <Card className="bg-white border border-[#eef0f2] shadow-none rounded-[16px] overflow-hidden hover:shadow-lg transition-all group">
@@ -148,12 +151,16 @@ function AccountCard({ account, showToast }: any) {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <ChevronUp className="h-5 w-5 text-[#8b8e94]" /> 
-              {/* Added to replicate screenshot top right arrow/dots */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsExpanded(!isExpanded); }} 
+                className="p-1 hover:bg-gray-50 rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
+              >
+                {isExpanded ? <ChevronUp className="h-5 w-5 text-[#8b8e94]" /> : <ChevronDown className="h-5 w-5 text-[#8b8e94]" />}
+              </button>
             </div>
           </div>
 
-          <div className="flex items-end justify-between mb-8">
+          <div className={cn("flex items-end justify-between", isExpanded ? "mb-8" : "mb-0")}>
             <div className="flex items-baseline gap-1">
               <span className="text-[36px] font-bold tracking-tight text-[#1a1b20] leading-none">
                 {Number(int).toLocaleString()}
@@ -172,42 +179,46 @@ function AccountCard({ account, showToast }: any) {
                 </button>
               )}
               <DropdownMenu>
-                <DropdownMenuTrigger className="bg-[#f2f3f5] hover:bg-[#e6e8eb] h-[40px] w-[40px] rounded-lg flex items-center justify-center transition-all">
+                <DropdownMenuTrigger className="bg-[#f2f3f5] hover:bg-[#e6e8eb] h-[40px] w-[40px] rounded-lg flex items-center justify-center transition-all outline-none cursor-pointer">
                    <MoreVertical className="h-4 w-4 text-[#1a1b20]" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[180px] rounded-xl shadow-xl p-1 border-[#eef0f2]">
-                   <DropdownMenuItem className="px-3 py-2.5 rounded-lg hover:bg-[#f2f3f5] font-semibold text-[13px] flex gap-2"><Info className="size-4" /> Account Info</DropdownMenuItem>
-                   <DropdownMenuItem onClick={() => fetchApi(`/accounts/${account.id}/archive`, { method: 'PATCH' }).then(() => window.location.reload())} className="px-3 py-2.5 rounded-lg hover:bg-red-50 text-[#cf304a] font-semibold text-[13px] flex gap-2"><Archive className="size-4" /> Archive</DropdownMenuItem>
+                   <DropdownMenuItem className="px-3 py-2.5 rounded-lg hover:bg-[#f2f3f5] font-semibold text-[13px] flex gap-2 cursor-pointer"><Info className="size-4" /> Account Info</DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => fetchApi(`/accounts/${account.id}/archive`, { method: 'PATCH' }).then(() => window.location.reload())} className="px-3 py-2.5 rounded-lg hover:bg-red-50 text-[#cf304a] font-semibold text-[13px] flex gap-2 cursor-pointer"><Archive className="size-4" /> Archive</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-12 gap-y-3 border-t border-[#eef0f2] pt-6 relative top-2">
-             {[ 
-               ['Actual leverage', `1:${account.leverage || 200}`], 
-               ['Free margin', `${parseFloat(account.freeMargin || account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`],
-               ['Adjust leverage', `1:${account.leverage || 200}`], 
-               ['Equity', `${parseFloat(account.equity || account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`],
-               ['Floating P/L', `0.00 USD`], 
-               ['Platform', account.platform || 'MT5'] 
-             ].map(([l, v], i) => (
-               <div key={i} className="flex items-end">
-                 <span className="text-[13px] text-[#5f6368] pb-0.5">{l}</span>
-                 <div className="flex-1 border-b-[2px] border-dotted border-[#d1d4dc] mx-2 mb-1 opacity-50" />
-                 <span className="text-[13px] font-bold text-[#1a1b20] pb-0.5">{v}</span>
-               </div>
-             ))}
-          </div>
+          {isExpanded && (
+            <div className="grid grid-cols-2 gap-x-12 gap-y-3 border-t border-[#eef0f2] pt-6 relative top-2 animate-in fade-in duration-300 slide-in-from-top-2">
+               {[ 
+                 ['Actual leverage', `1:${account.leverage || 200}`], 
+                 ['Free margin', `${parseFloat(account.freeMargin || account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`],
+                 ['Adjust leverage', `1:${account.leverage || 200}`], 
+                 ['Equity', `${parseFloat(account.equity || account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`],
+                 ['Floating P/L', `${floatingPL > 0 ? '+' : ''}${floatingPL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`], 
+                 ['Platform', account.platform || 'MT5'] 
+               ].map(([l, v], i) => (
+                 <div key={i} className="flex items-end">
+                   <span className="text-[13px] text-[#5f6368] pb-0.5">{l}</span>
+                   <div className="flex-1 border-b-[2px] border-dotted border-[#d1d4dc] mx-2 mb-1 opacity-50" />
+                   <span className={cn("text-[13px] font-bold pb-0.5", l === 'Floating P/L' ? (floatingPL >= 0 ? "text-[#03a66d]" : "text-[#cf304a]") : "text-[#1a1b20]")}>{v}</span>
+                 </div>
+               ))}
+            </div>
+          )}
         </div>
 
-        <div className="bg-white px-8 h-[60px] flex items-center justify-between border-t border-[#eef0f2]">
-           <div className="flex gap-8 text-[12px]">
-              <span className="text-[#5f6368]">Server&nbsp;&nbsp;<span className="text-[#1a1b20] font-bold">Exness-MT5Trial11</span> <Copy className="inline h-3.5 w-3.5 ml-1 text-[#8b8e94] cursor-pointer" /></span>
-              <span className="text-[#5f6368]">MT5 login&nbsp;&nbsp;<span className="text-[#1a1b20] font-bold">{account.accountNumber}</span> <Copy className="inline h-3.5 w-3.5 ml-1 text-[#8b8e94] cursor-pointer" /></span>
-              <button className="flex items-center gap-1.5 text-[12px] font-bold text-[#1a1b20] ml-2 hover:underline"><Pencil className="h-3.5 w-3.5" /> Change trading password</button>
-           </div>
-        </div>
+        {isExpanded && (
+          <div className="bg-white px-8 h-[60px] flex items-center justify-between border-t border-[#eef0f2]">
+             <div className="flex gap-8 text-[12px]">
+                <span className="text-[#5f6368]">Server&nbsp;&nbsp;<span className="text-[#1a1b20] font-bold">Exness-MT5Trial11</span> <Copy className="inline h-3.5 w-3.5 ml-1 text-[#8b8e94] cursor-pointer" /></span>
+                <span className="text-[#5f6368]">MT5 login&nbsp;&nbsp;<span className="text-[#1a1b20] font-bold">{account.accountNumber}</span> <Copy className="inline h-3.5 w-3.5 ml-1 text-[#8b8e94] cursor-pointer" /></span>
+                <button className="flex items-center gap-1.5 text-[12px] font-bold text-[#1a1b20] ml-2 hover:underline"><Pencil className="h-3.5 w-3.5" /> Change trading password</button>
+             </div>
+          </div>
+        )}
       </CardContent>
 
       <Dialog open={showBal} onOpenChange={setShowBal}>
