@@ -90,23 +90,50 @@ const updateLeverage = async (userId, accountId, leverage) => {
 };
 
 const getAccountSummary = async (userId) => {
-  const [accounts, totals] = await Promise.all([
+  const [accounts, openPositions] = await Promise.all([
     listAccounts(userId),
-    prisma.tradingAccount.aggregate({
-      where: { userId },
-      _sum: { balance: true, equity: true, margin: true, freeMargin: true },
-      _count: { id: true },
+    prisma.position.findMany({
+      where: { userId, status: "OPEN" },
+      include: { instrument: true },
     }),
   ]);
 
+  const accountsWithLiveEquity = accounts.map((account) => {
+    const accPositions = openPositions.filter((p) => p.tradingAccountId === account.id);
+    const floatingPnl = accPositions.reduce((sum, p) => {
+      const exit = p.side === "BUY" ? Number(p.instrument.bid) : Number(p.instrument.ask);
+      const points = p.side === "BUY" ? exit - Number(p.openPrice) : Number(p.openPrice) - exit;
+      return sum + points * Number(p.volumeLots) * Number(p.instrument.contractSize);
+    }, 0);
+
+    const liveEquity = Number(account.balance) + floatingPnl;
+    const freeMargin = liveEquity - Number(account.margin);
+    const marginLevel = Number(account.margin) === 0 ? 0 : (liveEquity / Number(account.margin)) * 100;
+
+    return {
+      ...account,
+      equity: liveEquity,
+      floatingPnl,
+      freeMargin,
+      marginLevel,
+    };
+  });
+
+  const totals = accountsWithLiveEquity.reduce(
+    (acc, curr) => ({
+      balance: acc.balance + Number(curr.balance),
+      equity: acc.equity + curr.equity,
+      margin: acc.margin + Number(curr.margin),
+      freeMargin: acc.freeMargin + curr.freeMargin,
+    }),
+    { balance: 0, equity: 0, margin: 0, freeMargin: 0 }
+  );
+
   return {
-    accounts,
+    accounts: accountsWithLiveEquity,
     totals: {
-      accountCount: totals._count.id,
-      balance: totals._sum.balance || 0,
-      equity: totals._sum.equity || 0,
-      margin: totals._sum.margin || 0,
-      freeMargin: totals._sum.freeMargin || 0,
+      ...totals,
+      accountCount: accounts.length,
     },
   };
 };

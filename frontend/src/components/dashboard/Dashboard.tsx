@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { 
   MoreVertical, LayoutGrid, List as ListIcon, 
   ChevronDown, ChevronUp, RefreshCw, Copy, 
-  Search, User, Info, Layout, Settings, Pencil, X, Archive
+  Search, User, Info, Layout, Settings, Pencil, X, Archive, HelpCircle
 } from 'lucide-react';
 import { fetchApi } from '../../lib/api';
 import { useUi } from '../../contexts/UiContext';
@@ -26,211 +26,270 @@ export function Dashboard() {
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [showPwaBanner, setShowPwaBanner] = useState(true);
+  const [showArchived, setShowArchived] = useState(true);
   const navigate = useNavigate();
   const { showToast, workspace, setWorkspace } = useUi();
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'balance'>('newest');
+  const [sortBy, setSortBy] = useState<'Newest' | 'Oldest' | 'Balance'>('Newest');
 
   useEffect(() => {
     fetchApi('/accounts').then(d => setAccounts(d?.accounts ?? d ?? [])).finally(() => setLoading(false));
   }, []);
 
   const displayAccounts = accounts.filter(a => a.accountType === (workspace === 'real' ? 'LIVE' : 'DEMO') && a.status === 'ACTIVE')
-    .sort((a, b) => sortBy === 'balance' ? parseFloat(b.balance) - parseFloat(a.balance) : b.id.localeCompare(a.id));
+    .sort((a, b) => {
+      if (sortBy === 'Balance') return parseFloat(b.balance) - parseFloat(a.balance);
+      if (sortBy === 'Oldest') return a.id.localeCompare(b.id);
+      return b.id.localeCompare(a.id);
+    });
+
+  const archivedCount = accounts.filter(a => a.status === 'CLOSED').length;
 
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto w-full pb-32 font-sans text-[#1a1b20]">
-      <div className="bg-[#fef9e7]/60 border border-[#fde047]/30 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+    <div className="space-y-6 max-w-[1100px] mx-auto w-full pb-32 font-sans text-[#212529]">
+      {/* Top Warning Banner */}
+      <div className="bg-[#FFF9E7] border border-[#FDE047] rounded-xl p-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center border border-gray-100 shadow-sm"><User className="h-5 w-5 text-[#8b8e94]" /></div>
-          <span className="text-[14px] font-bold">Hello. Fill in your account details to make your first deposit</span>
+          <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center border border-[#FDE047]">
+            <User className="h-5 w-5 text-[#848e9c]" />
+          </div>
+          <span className="text-[14px] font-medium text-[#212529]">Hello. Fill in your account details to make your first deposit</span>
         </div>
-        <div className="flex gap-3">
-          <button className="h-10 px-5 text-[13px] font-black hover:bg-black/5 rounded-lg">Learn more</button>
-          <button onClick={() => navigate('/profile')} className="h-10 px-7 bg-[#ffce00] hover:bg-[#e6bb00] font-black text-[13px] rounded-lg shadow-sm">Complete</button>
+        <div className="flex gap-4">
+          <button className="text-[14px] font-semibold text-[#212529] hover:opacity-70">Learn more</button>
+          <button 
+            onClick={() => navigate('/profile')} 
+            className="h-10 px-6 bg-[#FFD700] hover:bg-[#F2CC00] font-semibold text-[14px] rounded-lg transition-colors"
+          >
+            Complete
+          </button>
         </div>
       </div>
 
-      <div className="bg-[#f2f3f5] rounded-3xl p-10 relative overflow-hidden h-[160px] flex flex-col justify-center border border-gray-100 group cursor-pointer">
+      {/* Partner Banner */}
+      <div className="bg-[#F1E9E6] rounded-xl p-8 relative overflow-hidden h-[140px] flex flex-col justify-center border border-[#E9ECEF] group cursor-pointer">
         <div className="relative z-10">
-          <h2 className="text-[28px] font-black mb-1">Become a partner</h2>
+          <h2 className="text-[24px] font-bold text-[#212529] mb-1">Become a partner</h2>
           <p className="text-[#5f6368] text-[15px]">Invite a friend and earn up to 40% of our revenue</p>
         </div>
-        <div className="absolute right-0 top-0 h-full w-[60%] bg-gradient-to-l from-gray-200/50 to-transparent" />
+        <div className="absolute right-0 top-0 h-full w-[40%] bg-[url('https://images.unsplash.com/photo-1611974708305-96dd0ba18d3e?auto=format&fit=crop&q=80&w=400')] bg-cover opacity-20 group-hover:scale-105 transition-transform duration-700" />
       </div>
 
-      <div className="pt-6">
+      <div className="pt-4">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-[32px] font-black tracking-tighter">My accounts</h1>
-          <button className="flex items-center gap-2.5 font-black text-[13px] bg-white hover:bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 shadow-sm transition-all">+ Open account</button>
+          <h1 className="text-[28px] font-bold text-[#212529]">My accounts</h1>
+          <button className="flex items-center gap-2 font-semibold text-[14px] bg-[#F1F3F5] hover:bg-[#E9ECEF] px-4 py-2 rounded-lg transition-colors">
+            <span className="text-lg">+</span> Open account
+          </button>
         </div>
 
+        {/* Filters */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex p-1 bg-[#f2f3f5] rounded-xl h-[40px]">
-            {['real', 'demo'].map(w => (
-              <button key={w} onClick={() => setWorkspace(w as any)} className={cn("px-8 h-full flex items-center justify-center text-[13px] font-black rounded-lg transition-all capitalize", workspace === w ? "bg-white text-[#1a1b20] shadow-sm" : "text-[#5f6368]")}>{w}</button>
-            ))}
+          <div className="flex gap-6 border-b border-[#E9ECEF] w-full max-w-fit">
+            <button 
+              onClick={() => setWorkspace('real')} 
+              className={cn("pb-3 text-[14px] font-semibold transition-all px-2", workspace === 'real' ? "border-b-2 border-black text-black" : "text-[#848e9c] hover:text-black")}
+            >
+              Real
+            </button>
+            <button 
+              onClick={() => setWorkspace('demo')} 
+              className={cn("pb-3 text-[14px] font-semibold transition-all px-2", workspace === 'demo' ? "border-b-2 border-black text-black" : "text-[#848e9c] hover:text-black")}
+            >
+              Demo
+            </button>
           </div>
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-4">
              <div className="relative group">
-               <div className="flex items-center gap-2 text-[#1a1b20] text-[13px] border border-gray-200 rounded-lg px-4 h-[40px] bg-white cursor-pointer hover:bg-gray-50 uppercase tracking-widest text-[10px] font-black">
-                 <RefreshCw className="h-4 w-4 text-[#8b8e94]" /> {sortBy} <ChevronDown className="h-4 w-4 text-[#8b8e94]" />
-               </div>
-               <div className="absolute right-0 top-full mt-1 w-[160px] bg-white border border-gray-100 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-1">
-                 {['newest', 'oldest', 'balance'].map(s => <button key={s} onClick={() => setSortBy(s as any)} className="w-full text-left px-4 py-2.5 rounded-lg text-[13px] font-bold hover:bg-gray-50 capitalize">{s}</button>)}
+               <button className="flex items-center gap-2 text-[#212529] text-[13px] font-semibold hover:opacity-70 transition-opacity">
+                 <RefreshCw className="h-4 w-4 text-[#848e9c]" /> {sortBy} <ChevronDown className="h-4 w-4 text-[#848e9c]" />
+               </button>
+               <div className="absolute right-0 top-full mt-1 w-[140px] bg-white border border-[#E9ECEF] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-1">
+                 {['Newest', 'Oldest', 'Balance'].map(s => (
+                   <button 
+                    key={s} 
+                    onClick={() => setSortBy(s as any)} 
+                    className="w-full text-left px-3 py-2 rounded-md text-[13px] font-medium hover:bg-[#F8F9FA]"
+                   >
+                     {s}
+                   </button>
+                 ))}
                </div>
              </div>
-             <div className="flex items-center border border-gray-200 rounded-lg h-[40px] bg-white">
-                <button onClick={() => setViewMode('list')} className={cn("px-4 h-full border-r", viewMode === 'list' && 'bg-gray-100')}><ListIcon className="h-4 w-4" /></button>
-                <button onClick={() => setViewMode('grid')} className={cn("px-4 h-full", viewMode === 'grid' && 'bg-gray-100')}><LayoutGrid className="h-4 w-4" /></button>
+             <div className="flex items-center border border-[#E9ECEF] rounded-lg overflow-hidden h-9">
+                <button onClick={() => setViewMode('list')} className={cn("px-3 h-full flex items-center", viewMode === 'list' ? 'bg-[#F1F3F5]' : 'bg-white hover:bg-[#F8F9FA]')}><ListIcon className="h-4 w-4" /></button>
+                <button onClick={() => setViewMode('grid')} className={cn("px-3 h-full flex items-center border-l border-[#E9ECEF]", viewMode === 'grid' ? 'bg-[#F1F3F5]' : 'bg-white hover:bg-[#F8F9FA]')}><LayoutGrid className="h-4 w-4" /></button>
              </div>
           </div>
         </div>
 
-        <div className={cn("gap-4", viewMode === 'grid' ? 'grid grid-cols-2' : 'flex flex-col')}>
+        {/* Accounts List */}
+        <div className={cn("gap-4", viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2' : 'flex flex-col')}>
            {displayAccounts.map(account => <AccountCard key={account.id} account={account} showToast={showToast} />)}
+           {displayAccounts.length === 0 && !loading && (
+             <div className="text-center py-20 bg-[#F8F9FA] rounded-xl border border-dashed border-[#E9ECEF]">
+                <p className="text-[#848e9c] text-sm">No active accounts</p>
+                <p className="text-[#848e9c] text-xs mt-1">Create a new account or restore an archived account to get started.</p>
+             </div>
+           )}
         </div>
       </div>
 
+      {/* Archived Accounts */}
       <div className="pt-12">
-        <h2 className="text-[24px] font-black mb-8">Archived accounts</h2>
-        <div className="space-y-4">
-          {accounts.filter(a => a.status === 'CLOSED').map(acc => (
-            <div key={acc.id} className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                 <div className="flex flex-col gap-1.5">
-                   <div className="flex items-center gap-2"><span className="bg-gray-100 text-[#8b8e94] px-2 py-0.5 rounded text-[10px] font-black uppercase">MT5</span><span className="text-[14px] font-black">#{acc.accountNumber}</span></div>
-                   <span className="text-[18px] font-black text-[#8b8e94]">{parseFloat(acc.balance).toLocaleString()} {acc.baseCurrency}</span>
-                 </div>
-              </div>
-              <button onClick={() => fetchApi(`/accounts/${acc.id}/restore`, { method: 'PATCH' }).then(() => window.location.reload())} className="h-10 px-8 bg-gray-50 hover:bg-gray-100 font-black text-[13px] rounded-lg border border-gray-200 flex items-center gap-2"><RefreshCw className="h-4 w-4" /> Restore</button>
-            </div>
-          ))}
+        <div className="flex items-center justify-between mb-8 border-b border-[#E9ECEF] pb-4">
+          <h2 className="text-[20px] font-bold text-[#212529]">Archived accounts <HelpCircle className="inline h-4 w-4 text-[#848e9c] ml-1" /></h2>
+          <button 
+            onClick={() => setShowArchived(!showArchived)}
+            className="text-[13px] font-semibold text-[#848e9c] hover:text-black flex items-center gap-1"
+          >
+            {showArchived ? 'Hide accounts' : 'Show accounts'} {showArchived ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
         </div>
+        
+        {showArchived && (
+          <div className="space-y-4">
+            {accounts.filter(a => a.status === 'CLOSED').map(acc => (
+              <div key={acc.id} className="bg-white border border-[#E9ECEF] rounded-xl p-6 flex items-center justify-between hover:border-[#CED4DA] transition-colors">
+                <div className="flex items-center gap-4">
+                   <div className="flex flex-col gap-1">
+                     <div className="flex items-center gap-2 text-[12px] font-semibold text-[#848e9c]">
+                       <span className="uppercase">Real</span>
+                       <span className="uppercase">MT5</span>
+                       <span className="uppercase">Standard</span>
+                       <span className="text-black">#{acc.accountNumber} Standard</span>
+                     </div>
+                     <span className="text-[18px] font-bold text-[#212529] mt-2">Balance unavailable <span className="text-[12px] font-normal text-[#848e9c] ml-2">This account was archived automatically</span></span>
+                   </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => fetchApi(`/accounts/${acc.id}/restore`, { method: 'PATCH' }).then(() => window.location.reload())} className="h-9 px-6 bg-[#F1F3F5] hover:bg-[#E9ECEF] font-semibold text-[13px] rounded-lg flex items-center gap-2 transition-colors">
+                    <RefreshCw className="h-4 w-4" /> Restore
+                  </button>
+                  <button className="h-9 px-6 border border-[#E9ECEF] hover:bg-[#F8F9FA] font-semibold text-[13px] rounded-lg flex items-center gap-2 transition-colors">
+                    Manage statements
+                  </button>
+                </div>
+              </div>
+            ))}
+            {archivedCount === 0 && (
+              <p className="text-center py-8 text-[#848e9c] text-sm italic">No archived accounts</p>
+            )}
+          </div>
+        )}
       </div>
 
-      {showPwaBanner && (
-        <div className="fixed bottom-0 left-0 right-0 z-[100] flex justify-center pb-6">
-          <div className="bg-white border border-gray-200 shadow-2xl py-3 px-6 rounded-full flex items-center gap-10">
-            <div className="flex items-center gap-3"><div className="h-8 w-8 bg-[#ffce00] rounded-lg flex items-center justify-center font-black text-[14px]">ex</div><span className="text-[14px] font-black">Add Exness App to Home screen</span></div>
-            <button onClick={() => setShowPwaBanner(false)}><X className="h-5 w-5 text-[#8b8e94]" /></button>
+      {/* PWA Banner (Like Screenshot 3 bottom) */}
+      <div className="fixed bottom-4 left-0 right-0 z-[100] flex justify-center px-4">
+        <div className="bg-white border border-[#E9ECEF] shadow-2xl py-2.5 px-6 rounded-full flex items-center gap-8 animate-in slide-in-from-bottom-10 duration-500">
+          <div className="flex items-center gap-3">
+            <div className="h-7 w-7 bg-[#FFD700] rounded flex items-center justify-center font-bold text-[13px]">ex</div>
+            <span className="text-[13px] font-semibold">Add Exness App to Home screen</span>
           </div>
+          <button onClick={() => {}} className="hover:opacity-50"><X className="h-4 w-4 text-[#848e9c]" /></button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
 function AccountCard({ account, showToast }: any) {
   const [showBal, setShowBal] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [amt, setAmt] = useState('10000');
   const [int, frac] = parseFloat(account.balance).toFixed(2).split('.');
-
-  const badgeColor = account.accountType === 'DEMO' ? 'bg-[#e6f6f0] text-[#03a66d]' : 'bg-[#e8f0fe] text-[#1c6ed4]';
 
   const floatingPL = parseFloat(account.equity || account.balance) - parseFloat(account.balance);
 
   return (
-    <Card className="bg-white border border-[#eef0f2] shadow-none rounded-[16px] overflow-hidden hover:shadow-lg transition-all group">
+    <Card className="bg-white border border-[#E9ECEF] shadow-none rounded-xl overflow-hidden hover:border-[#CED4DA] transition-all">
       <CardContent className="p-0">
-        <div className="p-8">
-          <div className="flex justify-between mb-8">
-            <div className="flex items-center gap-2.5">
-              <span className={cn("px-2 py-0.5 rounded-[4px] text-[11px] font-bold capitalize", badgeColor)}>
-                {account.accountType === 'DEMO' ? 'Demo' : 'Real'}
-              </span>
-              <span className="bg-[#e6f6f0] text-[#03a66d] px-2 py-0.5 rounded-[4px] font-bold text-[11px]">
-                {account.platform || 'MT5'}
-              </span>
-              <span className="bg-[#e6f6f0] text-[#03a66d] px-2 py-0.5 rounded-[4px] font-bold text-[11px]">
-                Standard
-              </span>
-              <span className="text-[#1a1b20] font-bold text-[13px] ml-1">
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-bold uppercase text-[#848e9c] tracking-tight">{account.accountType === 'DEMO' ? 'Demo' : 'Real'}</span>
+              <span className="text-[11px] font-bold uppercase text-[#848e9c] tracking-tight">{account.platform || 'MT5'}</span>
+              <span className="text-[11px] font-bold uppercase text-[#848e9c] tracking-tight">Standard</span>
+              <span className="text-[#212529] font-semibold text-[13px] ml-1">
                 #{account.accountNumber} Standard
               </span>
             </div>
             <div className="flex items-center gap-2">
               <button 
-                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setIsExpanded(!isExpanded); }} 
-                className="p-1 hover:bg-gray-50 rounded-full transition-colors outline-none cursor-pointer flex items-center justify-center"
+                onClick={() => setIsExpanded(!isExpanded)} 
+                className="p-1 hover:bg-[#F1F3F5] rounded-full transition-colors"
               >
-                {isExpanded ? <ChevronUp className="h-5 w-5 text-[#8b8e94]" /> : <ChevronDown className="h-5 w-5 text-[#8b8e94]" />}
+                {isExpanded ? <ChevronUp className="h-5 w-5 text-[#848e9c]" /> : <ChevronDown className="h-5 w-5 text-[#848e9c]" />}
               </button>
             </div>
           </div>
 
-          <div className={cn("flex items-end justify-between", isExpanded ? "mb-8" : "mb-0")}>
+          <div className="flex items-end justify-between">
             <div className="flex items-baseline gap-1">
-              <span className="text-[36px] font-bold tracking-tight text-[#1a1b20] leading-none">
+              <span className="text-[32px] font-semibold tracking-tight text-[#212529] leading-none">
                 {Number(int).toLocaleString()}
               </span>
-              <span className="text-[18px] text-[#5f6368] font-bold">
-                .{frac} <span className="text-[14px] ml-0.5">USD</span>
+              <span className="text-[16px] text-[#848e9c] font-medium">
+                .{frac} <span className="text-[13px] ml-1">USD</span>
               </span>
             </div>
-            <div className="flex items-center gap-2.5 bg-white">
-              <button onClick={() => window.open(`/terminal?accountId=${account.id}`, '_blank')} className="bg-[#ffce00] hover:bg-[#e6bb00] text-[#1a1b20] font-bold h-[40px] px-6 rounded-lg text-[13px] flex items-center gap-2 shadow-sm transition-all focus:outline-none">
-                <Layout className="h-4 w-4" /> Trade
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => window.open(`/terminal?accountId=${account.id}`, '_blank')} 
+                className="bg-[#FFD700] hover:bg-[#F2CC00] text-black font-semibold h-9 px-6 rounded-lg text-[13px] transition-colors"
+              >
+                Trade
               </button>
               {account.accountType === 'DEMO' && (
-                <button onClick={() => setShowBal(true)} className="bg-[#f2f3f5] hover:bg-[#e6e8eb] text-[#1a1b20] font-bold h-[40px] px-4 rounded-lg text-[13px] flex items-center gap-2 transition-all">
-                  <Settings className="h-4 w-4 text-[#1a1b20]" /> Set Balance
+                <button onClick={() => setShowBal(true)} className="bg-[#F1F3F5] hover:bg-[#E9ECEF] text-black font-semibold h-9 px-4 rounded-lg text-[13px] transition-colors">
+                  Set Balance
                 </button>
               )}
               <DropdownMenu>
-                <DropdownMenuTrigger className="bg-[#f2f3f5] hover:bg-[#e6e8eb] h-[40px] w-[40px] rounded-lg flex items-center justify-center transition-all outline-none cursor-pointer">
-                   <MoreVertical className="h-4 w-4 text-[#1a1b20]" />
+                <DropdownMenuTrigger className="h-9 w-9 flex items-center justify-center hover:bg-[#F1F3F5] rounded-lg transition-colors outline-none">
+                   <MoreVertical className="h-4 w-4 text-[#848e9c]" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[180px] rounded-xl shadow-xl p-1 border-[#eef0f2]">
-                   <DropdownMenuItem className="px-3 py-2.5 rounded-lg hover:bg-[#f2f3f5] font-semibold text-[13px] flex gap-2 cursor-pointer"><Info className="size-4" /> Account Info</DropdownMenuItem>
-                   <DropdownMenuItem onClick={() => fetchApi(`/accounts/${account.id}/archive`, { method: 'PATCH' }).then(() => window.location.reload())} className="px-3 py-2.5 rounded-lg hover:bg-red-50 text-[#cf304a] font-semibold text-[13px] flex gap-2 cursor-pointer"><Archive className="size-4" /> Archive</DropdownMenuItem>
+                <DropdownMenuContent align="end" className="w-[180px] rounded-lg shadow-xl border-[#E9ECEF]">
+                   <DropdownMenuItem className="px-3 py-2 cursor-pointer text-[13px] font-medium flex gap-2"><Info className="h-4 w-4" /> Account Info</DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => fetchApi(`/accounts/${account.id}/archive`, { method: 'PATCH' }).then(() => window.location.reload())} className="px-3 py-2 cursor-pointer text-[13px] font-medium text-red-500 flex gap-2 hover:bg-red-50"><Archive className="h-4 w-4" /> Archive</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
 
           {isExpanded && (
-            <div className="grid grid-cols-2 gap-x-12 gap-y-3 border-t border-[#eef0f2] pt-6 relative top-2 animate-in fade-in duration-300 slide-in-from-top-2">
+            <div className="mt-8 pt-6 border-t border-[#E9ECEF] space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                {[ 
                  ['Actual leverage', `1:${account.leverage || 200}`], 
                  ['Free margin', `${parseFloat(account.freeMargin || account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`],
-                 ['Adjust leverage', `1:${account.leverage || 200}`], 
                  ['Equity', `${parseFloat(account.equity || account.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`],
                  ['Floating P/L', `${floatingPL > 0 ? '+' : ''}${floatingPL.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`], 
-                 ['Platform', account.platform || 'MT5'] 
                ].map(([l, v], i) => (
-                 <div key={i} className="flex items-end">
-                   <span className="text-[13px] text-[#5f6368] pb-0.5">{l}</span>
-                   <div className="flex-1 border-b-[2px] border-dotted border-[#d1d4dc] mx-2 mb-1 opacity-50" />
-                   <span className={cn("text-[13px] font-bold pb-0.5", l === 'Floating P/L' ? (floatingPL >= 0 ? "text-[#03a66d]" : "text-[#cf304a]") : "text-[#1a1b20]")}>{v}</span>
+                 <div key={i} className="flex justify-between items-center">
+                   <span className="text-[13px] text-[#848e9c]">{l}</span>
+                   <span className={cn("text-[13px] font-bold", l === 'Floating P/L' ? (floatingPL >= 0 ? "text-[#03A66D]" : "text-[#D6344D]") : "text-[#212529]")}>{v}</span>
                  </div>
                ))}
+               <div className="pt-4 flex gap-4 text-[12px] text-[#848e9c]">
+                  <span>MT5 login: <span className="text-black font-bold">{account.accountNumber}</span></span>
+                  <span>Server: <span className="text-black font-bold">Exness-MT5Trial</span></span>
+               </div>
             </div>
           )}
         </div>
-
-        {isExpanded && (
-          <div className="bg-white px-8 h-[60px] flex items-center justify-between border-t border-[#eef0f2]">
-             <div className="flex gap-8 text-[12px]">
-                <span className="text-[#5f6368]">Server&nbsp;&nbsp;<span className="text-[#1a1b20] font-bold">Exness-MT5Trial11</span> <Copy className="inline h-3.5 w-3.5 ml-1 text-[#8b8e94] cursor-pointer" /></span>
-                <span className="text-[#5f6368]">MT5 login&nbsp;&nbsp;<span className="text-[#1a1b20] font-bold">{account.accountNumber}</span> <Copy className="inline h-3.5 w-3.5 ml-1 text-[#8b8e94] cursor-pointer" /></span>
-                <button className="flex items-center gap-1.5 text-[12px] font-bold text-[#1a1b20] ml-2 hover:underline"><Pencil className="h-3.5 w-3.5" /> Change trading password</button>
-             </div>
-          </div>
-        )}
       </CardContent>
 
       <Dialog open={showBal} onOpenChange={setShowBal}>
-        <DialogContent className="sm:max-w-[400px] rounded-3xl p-8 border-none shadow-2xl">
-          <DialogTitle className="text-[24px] font-black mb-6">Set balance</DialogTitle>
-          <div className="space-y-6">
-            <Input type="number" value={amt} onChange={e => setAmt(e.target.value)} className="h-14 bg-[#f2f3f5] border-none rounded-2xl text-[20px] font-bold px-6" />
-            <div className="bg-[#fef9e7] rounded-2xl p-4 flex gap-3 text-[13px] font-medium"><Info className="h-5 w-5 text-[#ffce00] shrink-0" /> Changes apply instantly.</div>
+        <DialogContent className="sm:max-w-[400px] rounded-2xl p-6 border-none shadow-2xl">
+          <DialogTitle className="text-[20px] font-bold mb-4">Set balance</DialogTitle>
+          <div className="space-y-4">
+            <Input type="number" value={amt} onChange={e => setAmt(e.target.value)} className="h-12 bg-[#F1F3F5] border-none rounded-lg text-[18px] font-bold px-4" />
+            <div className="bg-[#FFF9E7] rounded-lg p-3 flex gap-2 text-[12px] text-[#212529]"><Info className="h-4 w-4 text-[#FFD700] shrink-0" /> Balance update is instant.</div>
           </div>
-          <DialogFooter className="mt-8 flex gap-3">
-            <Button variant="ghost" onClick={() => setShowBal(false)} className="flex-1 h-12 rounded-xl font-bold bg-[#f2f3f5] hover:bg-[#e6e8eb]">Cancel</Button>
-            <Button onClick={() => fetchApi(`/accounts/${account.id}/balance`, { method: 'PATCH', body: JSON.stringify({ balance: parseFloat(amt) }) }).then(() => window.location.reload())} className="flex-1 h-12 rounded-xl bg-[#ffce00] hover:bg-[#e6bb00] text-[#1a1b20] font-bold">Set balance</Button>
+          <DialogFooter className="mt-6 flex gap-2">
+            <Button variant="ghost" onClick={() => setShowBal(false)} className="flex-1 h-10 rounded-lg font-bold bg-[#F1F3F5] hover:bg-[#E9ECEF]">Cancel</Button>
+            <Button onClick={() => fetchApi(`/accounts/${account.id}/balance`, { method: 'PATCH', body: JSON.stringify({ balance: parseFloat(amt) }) }).then(() => window.location.reload())} className="flex-1 h-10 rounded-lg bg-[#FFD700] hover:bg-[#F2CC00] text-black font-bold">Set balance</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -4,6 +4,7 @@ const { roundCurrency } = require("../utils/number");
 const { createNotification } = require("../notifications/notification.service");
 const orderService = require("../services/orderService");
 const positionService = require("../services/positionService");
+const priceService = require("../services/priceService");
 
 function calcMarginRequired({ price, volumeLots, leverage, contractSize }) {
   return roundCurrency((price * volumeLots * contractSize) / leverage);
@@ -168,12 +169,17 @@ async function closePosition({ userId, positionId }) {
     throw error;
   }
 
-  const closePrice = position.side === "BUY" ? Number(position.instrument.bid) : Number(position.instrument.ask);
+  const liveTick = priceService.getLivePrice(position.instrument.symbol);
+  
+  const closePrice = liveTick 
+    ? (position.side === "BUY" ? liveTick.bid : liveTick.ask)
+    : (position.side === "BUY" ? Number(position.instrument.bid) : Number(position.instrument.ask));
+
   const realizedPnl = calcUnrealizedPnl({
     side: position.side,
     openPrice: Number(position.openPrice),
-    marketBid: Number(position.instrument.bid),
-    marketAsk: Number(position.instrument.ask),
+    marketBid: liveTick ? liveTick.bid : Number(position.instrument.bid),
+    marketAsk: liveTick ? liveTick.ask : Number(position.instrument.ask),
     volumeLots: Number(position.volumeLots),
     contractSize: Number(position.instrument.contractSize),
   });
@@ -195,18 +201,31 @@ async function closePosition({ userId, positionId }) {
     });
 
     if (position.tradingAccount.walletId) {
-      await tx.walletTransaction.create({
-        data: {
-          walletId: position.tradingAccount.walletId,
-          userId,
-          tradingAccountId: position.tradingAccount.id,
-          type: "TRADE_PNL",
-          status: "COMPLETED",
-          amount: realizedPnl,
-          reference: `PNL-${Date.now()}`,
-          description: `Realized PnL for ${position.positionNumber}`,
-        },
-      });
+      try {
+        await tx.walletTransaction.create({
+          data: {
+            walletId: position.tradingAccount.walletId,
+            userId,
+            tradingAccountId: position.tradingAccount.id,
+            type: "TRADE_PNL",
+            status: "COMPLETED",
+            amount: realizedPnl,
+            reference: `PNL-${position.id}-${Date.now()}`, // Added position.id for uniqueness
+            description: `Realized PnL for ${position.positionNumber}`,
+          },
+        });
+
+        // Update the wallet balance itself
+        await tx.wallet.update({
+          where: { id: position.tradingAccount.walletId },
+          data: { balance: { increment: realizedPnl } },
+        });
+      } catch (err) {
+        console.error(`[TradingService] Wallet update failed for position ${positionId}:`, err.message);
+        // We don't throw here to ensure the position STILL closes even if wallet history fails
+        // but we should probably keep it in the transaction for consistency.
+        throw new Error(`Financial sync failed: ${err.message}`);
+      }
     }
 
     await tx.auditLog.create({

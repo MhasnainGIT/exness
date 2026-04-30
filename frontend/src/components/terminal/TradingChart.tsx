@@ -82,8 +82,8 @@ export const TradingChart = forwardRef<any, ChartProps>((props, ref) => {
         textColor: colors.textColor,
       },
       grid: {
-        vertLines: { color: 'rgba(43, 47, 54, 0.15)' },
-        horzLines: { color: 'rgba(43, 47, 54, 0.15)' },
+        vertLines: { color: '#2b2b36' },
+        horzLines: { color: '#2b2b36' },
       },
       timeScale: {
         timeVisible: true,
@@ -101,13 +101,13 @@ export const TradingChart = forwardRef<any, ChartProps>((props, ref) => {
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: {
-          color: '#848e9c',
+          color: '#758696',
           width: 1,
           style: 2,
           labelVisible: true
         },
         horzLine: {
-          color: '#848e9c',
+          color: '#758696',
           width: 1,
           style: 2,
           labelVisible: true
@@ -128,8 +128,11 @@ export const TradingChart = forwardRef<any, ChartProps>((props, ref) => {
       borderVisible: false,
       wickUpColor: colors.wickUpColor,
       wickDownColor: colors.wickDownColor,
-      priceLineVisible: false,
+      priceLineVisible: true, // Enable the moving price line
       priceLineSource: PriceLineSource.LastVisible,
+      priceLineColor: '#848e9c',
+      priceLineWidth: 1,
+      priceLineStyle: 2, // Dashed
     });
 
     const ema20 = chart.addSeries(LineSeries, {
@@ -222,7 +225,11 @@ export const TradingChart = forwardRef<any, ChartProps>((props, ref) => {
     }
   }, [data]);
 
-  // Live Price Update (Real-time Candle)
+  // Bid/Ask Price Lines Refs
+  const bidLineRef = useRef<any>(null);
+  const askLineRef = useRef<any>(null);
+
+  // Live Price Update (Real-time Candle & Price Lines)
   const activeCandleRef = useRef<any>(null);
 
   useEffect(() => {
@@ -267,6 +274,29 @@ export const TradingChart = forwardRef<any, ChartProps>((props, ref) => {
 
     try {
       seriesRef.current.update(current);
+
+      // UPDATE BID/ASK LINES
+      if (bidLineRef.current) seriesRef.current.removePriceLine(bidLineRef.current);
+      if (askLineRef.current) seriesRef.current.removePriceLine(askLineRef.current);
+
+      bidLineRef.current = seriesRef.current.createPriceLine({
+        price: livePrice.bid,
+        color: '#848e9c',
+        lineWidth: 2, // Thicker for clarity
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: 'BID',
+      });
+
+      askLineRef.current = seriesRef.current.createPriceLine({
+        price: livePrice.ask,
+        color: '#cf304a', // Exness Red
+        lineWidth: 2, // Thicker for clarity
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: 'ASK',
+      });
+
     } catch (e) {
       console.error('Chart live update error:', e);
     }

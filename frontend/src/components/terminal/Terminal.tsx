@@ -4,7 +4,7 @@ import {
   Bell, Grid, User, Layout as LayoutIcon, Search, MoreVertical, Calendar, Settings, Focus,
   ChevronDown, ZoomIn, Magnet, Lock, Eye, Trash2, ArrowUpCircle, ArrowDownCircle,
   Plus, Minus, List as ListIcon, Star, Menu, ArrowDown, ArrowUp, X, RefreshCw, Info, ExternalLink,
-  History, CandlestickChart, Activity, Newspaper, Wallet, ChevronUp, AlertCircle, Filter, Clock
+  History, CandlestickChart, Activity, Newspaper, Wallet, ChevronUp, AlertCircle, Filter, Clock, Briefcase
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fetchApi } from '../../lib/api';
@@ -24,6 +24,7 @@ export function Terminal() {
   const [instruments, setInstruments] = useState<any[]>([]);
   const [activeSymbol, setActiveSymbol] = useState('EURGBP');
   const [search, setSearch] = useState('');
+  const [selectedSide, setSelectedSide] = useState<'BUY' | 'SELL' | null>(null);
 
   const [activeTab, setActiveTab] = useState<'open' | 'pending' | 'closed'>('open');
   const [positions, setPositions] = useState<any[]>([]);
@@ -59,6 +60,9 @@ export function Terminal() {
   const [leftWidth, setLeftWidth] = useState(280);
   const [isRightOpen, setIsRightOpen] = useState(true);
   const [isResizing, setIsResizing] = useState(false);
+  const [bottomHeight, setBottomHeight] = useState(220);
+  const [isBottomResizing, setIsBottomResizing] = useState(false);
+  const [isBottomOpen, setIsBottomOpen] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<'instruments' | 'news' | 'portfolio' | 'history'>('instruments');
 
   // Tools State
@@ -153,20 +157,32 @@ export function Terminal() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000); 
+    const interval = setInterval(fetchData, 1000); // 1s interval for ultra-responsive UI
     return () => clearInterval(interval);
   }, [account?.id]);
 
   // (Removed redundant identical fetchApi useEffect for activeSymbol/timeframe)
   const activeInstrument = instruments.find(i => i.symbol === activeSymbol);
 
-  const baseLivePrice = prices[activeSymbol] || { time: Date.now(), bid: activeInstrument?.defaultPrice || 1.05, ask: (activeInstrument?.defaultPrice || 1.05) + 0.0001 };
-  const livePrice = {
-    ...baseLivePrice,
-    bid: Number(baseLivePrice.bid.toFixed(activeSymbol.includes('JPY') ? 2 : 5)),
-    ask: Number(baseLivePrice.ask.toFixed(activeSymbol.includes('JPY') ? 2 : 5)),
-    time: Date.now()
-  };
+  const livePrice = useMemo(() => {
+    const base = prices[activeSymbol] || { 
+      time: Date.now(), 
+      bid: activeInstrument?.defaultPrice || 1.05, 
+      ask: (activeInstrument?.defaultPrice || 1.05) + (activeInstrument?.spread || 0.0001) 
+    };
+    
+    // Ensure we handle potential string values from the database/Prisma
+    const bidNum = Number(base.bid || 0);
+    const askNum = Number(base.ask || 0);
+    const precision = activeSymbol.includes('JPY') ? 2 : 5;
+
+    return {
+      ...base,
+      bid: Number(bidNum.toFixed(precision)),
+      ask: Number(askNum.toFixed(precision)),
+      time: base.time || Date.now()
+    };
+  }, [prices[activeSymbol], activeSymbol, activeInstrument]);
 
   const positionsWithPL = useMemo(() => {
     return positions.map(pos => {
@@ -211,13 +227,7 @@ export function Terminal() {
       return;
     }
 
-    // One-click check
-    if (!oneClickTrading) {
-      setActiveModal('order_confirm');
-      setPendingOrder({ side });
-      return;
-    }
-
+    // Execute directly (sidebar handles its own confirmation buttons now)
     executeOrder(side);
   };
 
@@ -251,11 +261,17 @@ export function Terminal() {
   const [pendingOrder, setPendingOrder] = useState<{side: 'BUY' | 'SELL'} | null>(null);
 
   const handleCancelOrder = async (orderId: string) => {
+    // OPTIMISTIC UPDATE: Remove instantly from list
+    const orderToCancel = pending.find(o => o.id === orderId);
+    setPending(prev => prev.filter(o => o.id !== orderId));
+
     try {
       await fetchApi(`/trading/orders/${orderId}`, { method: 'DELETE' });
       fetchData();
       showToast('Pending order cancelled', 'info');
     } catch (e: any) {
+      // ROLLBACK if failed
+      if (orderToCancel) setPending(prev => [orderToCancel, ...prev]);
       showToast('Failed to cancel order', 'error');
     }
   };
@@ -268,12 +284,21 @@ export function Terminal() {
   };
 
   const handleClosePosition = async (id: string) => {
+    // OPTIMISTIC UPDATE: Remove instantly from UI
+    const posToClose = positions.find(p => p.id === id);
+    setPositions(prev => prev.filter(p => p.id !== id));
+    
     try {
       await fetchApi(`/trading/positions/${id}/close`, { method: 'POST' });
+      showToast('Position closed instantly', 'success');
+      // Refresh background data to sync history and balances
       fetchData();
-      showToast('Position closed', 'success');
     } catch (e: any) {
-      showToast('Failed to close position', 'error');
+      // ROLLBACK if failed
+      if (posToClose) setPositions(prev => [posToClose, ...prev]);
+      const errMsg = e.response?.data?.message || e.message || 'Unknown error';
+      showToast(`Failed to close: ${errMsg}`, 'error');
+      console.error('Position close error:', e);
     }
   };
 
@@ -282,12 +307,30 @@ export function Terminal() {
     e.preventDefault();
   };
 
+  const startBottomResizing = (e: React.MouseEvent) => {
+    setIsBottomResizing(true);
+    e.preventDefault();
+  };
+
   useEffect(() => {
-    if (!isResizing) return;
+    if (!isResizing && !isBottomResizing) return;
+
     const handleMouseMove = (e: MouseEvent) => {
-      setLeftWidth(Math.min(Math.max(200, e.clientX - 48), 600));
+      if (isResizing) {
+        setLeftWidth(Math.min(Math.max(200, e.clientX - 48), 600));
+      }
+      if (isBottomResizing) {
+        const newHeight = window.innerHeight - e.clientY - 38; // 38 is footer
+        setBottomHeight(Math.min(Math.max(42, newHeight), 600));
+        if (newHeight > 60) setIsBottomOpen(true);
+        else setIsBottomOpen(false);
+      }
     };
-    const handleMouseUp = () => setIsResizing(false);
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      setIsBottomResizing(false);
+    };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -295,7 +338,7 @@ export function Terminal() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing]);
+  }, [isResizing, isBottomResizing]);
 
   // Chart Auto-fit Logic
   useEffect(() => {
@@ -347,6 +390,9 @@ export function Terminal() {
                     />
                   </div>
                   <span className="tracking-tight">{sym}</span>
+                  <span className={`ml-2 tabular-nums text-[11px] transition-colors ${prices[sym]?.direction === 'up' ? 'text-exness-green' : prices[sym]?.direction === 'down' ? 'text-exness-red' : 'text-exness-text-dim'}`}>
+                    {prices[sym]?.bid ? (prices[sym].bid).toFixed(sym.includes('JPY') ? 2 : 5) : '...'}
+                  </span>
                   {activeSymbol === sym && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-exness-yellow" />}
                 </div>
                 {navbarSymbols.length > 1 && (
@@ -761,13 +807,18 @@ export function Terminal() {
 
               {/* Watermark/Legend */}
               <div className="absolute top-4 left-4 z-10 text-[11px] font-mono select-none">
-                <div className="text-white font-bold">{activeSymbol} • {timeframe.toLowerCase()} • EXNESS <span className="text-[#4fba73] ml-1">● Live</span></div>
+                <div className="text-white font-bold">{activeInstrument?.displayName || activeSymbol} • {timeframe.toLowerCase()}</div>
                 {candles.length > 0 && (
-                  <div className="flex gap-2 text-[#848e9c] mt-0.5">
-                    <span>O <span className="text-white">{candles[candles.length - 1].open.toFixed(5)}</span></span>
-                    <span>H <span className="text-white">{candles[candles.length - 1].high.toFixed(5)}</span></span>
-                    <span>L <span className="text-white">{candles[candles.length - 1].low.toFixed(5)}</span></span>
-                    <span>C <span className="text-white">{livePrice.bid}</span></span>
+                  <div className="flex gap-2 text-[#848e9c] mt-0.5 text-[10px]">
+                    <span className="tabular-nums text-exness-red">O <span className="text-exness-red/80">{Number(candles[candles.length - 1].open).toFixed(activeSymbol.includes('JPY') ? 2 : 5)}</span></span>
+                    <span className="tabular-nums text-exness-red">H <span className="text-exness-red/80">{Number(candles[candles.length - 1].high).toFixed(activeSymbol.includes('JPY') ? 2 : 5)}</span></span>
+                    <span className="tabular-nums text-exness-red">L <span className="text-exness-red/80">{Number(candles[candles.length - 1].low).toFixed(activeSymbol.includes('JPY') ? 2 : 5)}</span></span>
+                    <span className="tabular-nums text-exness-red">C <span className="text-exness-red/80">{livePrice.bid}</span></span>
+                    {candles[0] && (
+                      <span className="ml-1 text-exness-red/60">
+                        {(livePrice.bid - Number(candles[0].open)).toFixed(2)} ({((livePrice.bid - Number(candles[0].open)) / Number(candles[0].open) * 100).toFixed(2)}%)
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -775,14 +826,31 @@ export function Terminal() {
           </div>
 
           {/* Bottom Tabs & Monitor */}
-          <div className="bg-[#16181d] border-t border-[#2b2f36] flex flex-col">
-            <div className="flex text-[12px] font-bold border-b border-[#2b2f36]">
-              <BottomTab active={activeTab === 'open'} label={`Open (${positions.length})`} onClick={() => setActiveTab('open')} />
-              <BottomTab active={activeTab === 'pending'} label={`Pending (${pending.length})`} onClick={() => setActiveTab('pending')} />
-              <BottomTab active={activeTab === 'closed'} label="Closed" onClick={() => setActiveTab('closed')} />
+          <div 
+            style={{ height: isBottomOpen ? bottomHeight : 42 }}
+            className="bg-[#16181d] border-t border-[#2b2f36] flex flex-col relative transition-[height] duration-200 ease-out"
+          >
+            {/* Bottom Resizer */}
+            <div 
+              onMouseDown={startBottomResizing}
+              className="absolute top-0 left-0 right-0 h-[4px] cursor-row-resize hover:bg-exness-yellow/50 transition-colors z-50"
+            />
+
+            <div className="flex text-[12px] font-bold border-b border-[#2b2f36] items-center justify-between pr-4">
+              <div className="flex">
+                <BottomTab active={activeTab === 'open'} label={`Open (${positions.length})`} onClick={() => setActiveTab('open')} />
+                <BottomTab active={activeTab === 'pending'} label={`Pending (${pending.length})`} onClick={() => setActiveTab('pending')} />
+                <BottomTab active={activeTab === 'closed'} label="Closed" onClick={() => setActiveTab('closed')} />
+              </div>
+              <button 
+                onClick={() => setIsBottomOpen(!isBottomOpen)}
+                className="p-1.5 hover:bg-white/5 rounded transition-colors text-exness-text-dim"
+              >
+                {isBottomOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              </button>
             </div>
 
-            <div className="h-[180px] overflow-y-auto custom-scrollbar bg-[#0c0d10]">
+            <div className={`flex-1 overflow-y-auto custom-scrollbar bg-[#0c0d10] ${!isBottomOpen ? 'hidden' : ''}`}>
               <table className="w-full text-left text-[11px] font-medium border-separate border-spacing-0">
                 <thead className="sticky top-0 bg-[#16181d] text-[#5f6368] uppercase tracking-wider font-black text-[10px] z-10">
                   <tr>
@@ -802,20 +870,27 @@ export function Terminal() {
                       <tr key={pos.id} className="hover:bg-white/5 transition-colors">
                         <td className="px-4 py-3 text-[#d1d4dc]">#{pos.id.substring(0, 8)}</td>
                         <td className="px-4 py-3 text-white font-bold">{pos.instrumentSymbol}</td>
-                        <td className={`px-4 py-3 font-black ${pos.side === 'BUY' ? 'text-[#1e75e4]' : 'text-[#d6344d]'}`}>{pos.side}</td>
+                        <td className={`px-4 py-3 font-black ${pos.side === 'BUY' ? 'text-exness-blue' : 'text-exness-red'}`}>{pos.side}</td>
                         <td className="px-4 py-3 text-[#848e9c]">{pos.volumeLots}</td>
                         <td className="px-4 py-3 text-[#d1d4dc]">{(pos.entryPrice || 0).toFixed(5)}</td>
                         <td className="px-4 py-3 text-[#d1d4dc]">{(pos.currentPrice || 0).toFixed(5)}</td>
-                        <td className={`px-4 py-3 text-right font-black tabular-nums ${(pos.profit || 0) >= 0 ? 'text-[#4fba73]' : 'text-[#d6344d]'}`}>
+                        <td className={`px-4 py-3 text-right font-black tabular-nums ${(pos.profit || 0) >= 0 ? 'text-exness-green' : 'text-exness-red'}`}>
                           {(pos.profit || 0) >= 0 ? '+' : ''}{(pos.profit || 0).toFixed(2)}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button onClick={() => handleClosePosition(pos.id)} className="text-[#848e9c] hover:text-[#d6344d] p-1"><X className="h-4 w-4" /></button>
+                          <button onClick={() => handleClosePosition(pos.id)} className="text-[#848e9c] hover:text-exness-red p-1"><X className="h-4 w-4" /></button>
                         </td>
                       </tr>
                     ))
                   ) : (
-                    <tr><td colSpan={8} className="py-12 text-center text-[#5f6368] italic">No active positions</td></tr>
+                    <tr>
+                      <td colSpan={8} className="py-20 text-center">
+                        <div className="flex flex-col items-center gap-4 opacity-40">
+                          <Briefcase className="h-10 w-10 text-exness-text-dim" />
+                          <span className="text-[13px] font-medium text-exness-text-dim">No open positions</span>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
                   {activeTab === 'pending' && (pending.length > 0 ? (
                     pending.map(ord => (
@@ -929,18 +1004,18 @@ export function Terminal() {
                   <div className="relative">
                     <div className="flex gap-1 h-[72px]">
                       <button 
-                        onClick={() => handlePlaceOrder('SELL')} 
-                        className="flex-1 bg-exness-panel-alt border border-exness-border rounded-[4px] p-3 text-left relative hover:bg-exness-red/5 hover:border-exness-red/30 transition-all group"
+                        onClick={() => setSelectedSide('SELL')} 
+                        className={`flex-1 bg-exness-panel-alt border rounded-[4px] p-3 text-left relative transition-all group ${selectedSide === 'SELL' ? 'border-exness-red bg-exness-red/10' : 'border-exness-border hover:bg-exness-red/5 hover:border-exness-red/30'}`}
                       >
-                        <span className="block text-[10px] font-bold text-exness-text-muted uppercase mb-1 group-hover:text-exness-red">Sell</span>
-                        <span className="block text-[20px] font-black text-exness-red tabular-nums leading-none">{livePrice.bid}</span>
+                        <span className={`block text-[10px] font-bold uppercase mb-1 ${selectedSide === 'SELL' ? 'text-exness-red' : 'text-exness-text-muted group-hover:text-exness-red'}`}>Sell</span>
+                        <span className={`block text-[20px] font-black tabular-nums leading-none ${selectedSide === 'SELL' ? 'text-white' : 'text-exness-red'}`}>{livePrice.bid}</span>
                       </button>
                       <button 
-                        onClick={() => handlePlaceOrder('BUY')} 
-                        className="flex-1 bg-exness-panel-alt border border-exness-border rounded-[4px] p-3 text-right relative hover:bg-exness-blue/5 hover:border-exness-blue/30 transition-all group"
+                        onClick={() => setSelectedSide('BUY')} 
+                        className={`flex-1 bg-exness-panel-alt border rounded-[4px] p-3 text-right relative transition-all group ${selectedSide === 'BUY' ? 'border-exness-blue bg-exness-blue/10' : 'border-exness-border hover:bg-exness-blue/5 hover:border-exness-blue/30'}`}
                       >
-                        <span className="block text-[10px] font-bold text-exness-text-muted uppercase mb-1 group-hover:text-exness-blue">Buy</span>
-                        <span className="block text-[20px] font-black text-exness-blue tabular-nums leading-none">{livePrice.ask}</span>
+                        <span className={`block text-[10px] font-bold uppercase mb-1 ${selectedSide === 'BUY' ? 'text-exness-blue' : 'text-exness-text-muted group-hover:text-exness-blue'}`}>Buy</span>
+                        <span className={`block text-[20px] font-black tabular-nums leading-none ${selectedSide === 'BUY' ? 'text-white' : 'text-exness-blue'}`}>{livePrice.ask}</span>
                       </button>
                     </div>
                     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
@@ -977,6 +1052,7 @@ export function Terminal() {
                           value={requestedPrice ? requestedPrice.toFixed(5) : livePrice.bid.toFixed(5)} 
                           onInc={() => setRequestedPrice(v => (v || livePrice.bid) + 0.0001)} 
                           onDec={() => setRequestedPrice(v => (v || livePrice.bid) - 0.0001)} 
+                          onChange={(v: string) => setRequestedPrice(parseFloat(v) || null)}
                         />
                      )}
                      <NumericInput 
@@ -985,6 +1061,7 @@ export function Terminal() {
                        value={volumeLots.toFixed(2)} 
                        onInc={() => setVolumeLots(v => v + 0.01)} 
                        onDec={() => setVolumeLots(v => Math.max(0.01, v - 0.01))} 
+                       onChange={(v: string) => setVolumeLots(parseFloat(v) || 0.01)}
                      />
                      <NumericInput 
                        label="Take Profit" 
@@ -993,6 +1070,7 @@ export function Terminal() {
                        isPlaceholder={!takeProfit}
                        onInc={() => setTakeProfit(v => (v || livePrice.bid) + 0.0001)} 
                        onDec={() => setTakeProfit(v => (v || livePrice.bid) - 0.0001)} 
+                       onChange={(v: string) => setTakeProfit(parseFloat(v) || null)}
                      />
                      <NumericInput 
                        label="Stop Loss" 
@@ -1001,19 +1079,37 @@ export function Terminal() {
                        isPlaceholder={!stopLoss}
                        onInc={() => setStopLoss(v => (v || livePrice.ask) + 0.0001)} 
                        onDec={() => setStopLoss(v => Math.max(0, (v || livePrice.ask) - 0.0001))} 
+                       onChange={(v: string) => setStopLoss(parseFloat(v) || null)}
                      />
                   </div>
                 </div>
               </div>
               
               {/* 6. Footer Primary Action */}
-              <div className="p-4 border-t border-exness-border bg-exness-panel">
-                <button 
-                  onClick={() => handlePlaceOrder('BUY')} 
-                  className="w-full py-4 bg-exness-yellow hover:bg-[#e6bb00] text-[#1a1b20] font-black uppercase tracking-widest text-[14px] rounded-lg transition-all active:scale-[0.98] shadow-lg shadow-exness-yellow/10"
-                >
-                  Place Order
-                </button>
+              <div className="p-4 border-t border-exness-border bg-exness-panel space-y-3">
+                {selectedSide ? (
+                  <>
+                    <button 
+                      onClick={() => { handlePlaceOrder(selectedSide); setSelectedSide(null); }} 
+                      className={`w-full py-4 font-black uppercase tracking-widest text-[14px] rounded-lg transition-all active:scale-[0.98] shadow-lg text-white ${selectedSide === 'BUY' ? 'bg-exness-blue hover:bg-[#1561bd]' : 'bg-exness-red hover:bg-[#b02b40]'}`}
+                    >
+                      Confirm {selectedSide === 'BUY' ? 'Buy' : 'Sell'} {volumeLots} lots
+                    </button>
+                    <button 
+                      onClick={() => setSelectedSide(null)}
+                      className="w-full py-2 text-exness-text-dim hover:text-white text-[12px] font-bold transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    disabled
+                    className="w-full py-4 bg-exness-hover text-exness-text-dim font-black uppercase tracking-widest text-[14px] rounded-lg cursor-not-allowed"
+                  >
+                    Select Buy or Sell
+                  </button>
+                )}
               </div>
             </motion.aside>
 
@@ -1307,25 +1403,35 @@ function IconButton({ icon: Icon, onClick }: { icon: any, onClick: () => void })
   );
 }
 
-function NumericInput({ label, unit, value, onInc, onDec, isPlaceholder }: any) {
+function NumericInput({ label, unit, value, onInc, onDec, onChange, isPlaceholder }: any) {
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between items-center px-0.5">
         <span className="text-[11px] font-bold text-exness-text-main">{label}</span>
         <span className="text-[10px] font-bold text-exness-text-dim uppercase">{unit}</span>
       </div>
-      <div className="flex items-center bg-exness-panel-alt border border-exness-border rounded-[4px] overflow-hidden group hover:border-exness-text-dim transition-all h-[40px]">
-        <div className="flex-1 px-3 text-[14px] font-black tabular-nums">
-           <span className={isPlaceholder ? 'text-exness-text-dim' : 'text-exness-text-main'}>{value}</span>
-        </div>
-        <div className="flex h-full items-center border-l border-exness-border">
-          <button onClick={onDec} className="w-[40px] h-full flex items-center justify-center text-exness-text-dim hover:text-exness-text-main hover:bg-exness-hover transition-all border-r border-exness-border active:scale-90">
-            <Minus className="h-4 w-4" />
-          </button>
-          <button onClick={onInc} className="w-[40px] h-full flex items-center justify-center text-exness-text-dim hover:text-exness-text-main hover:bg-exness-hover transition-all active:scale-90">
-            <Plus className="h-4 w-4" />
-          </button>
-        </div>
+      <div className="flex items-center bg-exness-panel-alt border border-exness-border rounded-[4px] overflow-hidden group focus-within:border-exness-yellow hover:border-exness-text-dim transition-all h-[40px]">
+        <button 
+          onClick={onDec} 
+          className="w-[40px] h-full flex items-center justify-center text-exness-text-dim hover:text-exness-text-main hover:bg-exness-hover transition-all border-r border-exness-border active:scale-90"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        
+        <input 
+          type="text"
+          value={value === "Not set" ? "" : value}
+          placeholder={isPlaceholder ? value : ""}
+          onChange={(e) => onChange?.(e.target.value)}
+          className="flex-1 bg-transparent border-none outline-none px-3 text-[14px] font-black tabular-nums text-exness-text-main placeholder:text-exness-text-dim text-center"
+        />
+        
+        <button 
+          onClick={onInc} 
+          className="w-[40px] h-full flex items-center justify-center text-exness-text-dim hover:text-exness-text-main hover:bg-exness-hover transition-all border-l border-exness-border active:scale-90"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );

@@ -19,13 +19,6 @@ interface MarketContextType {
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
-// Use same host/port as the page so Vite proxy can forward the WS connection
-const getWsUrl = () => {
-  const isSecure = window.location.protocol === 'https:';
-  const host = window.location.host;
-  return `${isSecure ? 'wss' : 'ws'}://${host}/ws`;
-};
-
 export function MarketProvider({ children }: { children: React.ReactNode }) {
   const [prices, setPrices] = useState<Record<string, PriceData>>({});
   const [isConnected, setIsConnected] = useState(false);
@@ -44,7 +37,8 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const connect = () => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
 
-    ws.current = new WebSocket(getWsUrl());
+    // Use WS_URL from api.ts which points to the backend directly (e.g. localhost:5000/ws)
+    ws.current = new WebSocket(WS_URL);
 
     ws.current.onopen = () => {
       setIsConnected(true);

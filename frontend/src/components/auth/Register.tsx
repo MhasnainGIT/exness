@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchApi } from '../../lib/api';
-import { Button } from '@/components/ui/button';
-import { Mail, Lock, User, Globe, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export function Register() {
   const [formData, setFormData] = useState({
@@ -32,7 +30,7 @@ export function Register() {
         body: JSON.stringify(formData),
       });
       login(data);
-      navigate('/');
+      navigate('/accounts');
     } catch (err: any) {
       setError(err.message || 'Registration failed');
     } finally {
@@ -41,125 +39,98 @@ export function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0d10] flex flex-col font-sans selection:bg-[#ffce00]/30">
-      <div className="flex-1 flex flex-col justify-center items-center px-6 py-12">
-        <div className="w-full max-w-[480px]">
-          {/* Logo Section */}
-          <div className="mb-10 flex flex-col items-center">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="font-black text-[32px] tracking-tighter text-[#ffce00] lowercase">exness</span>
-            </div>
-            <p className="text-[#848e9c] text-sm font-medium text-center">Open your trading account in minutes</p>
-          </div>
-
-          <div className="bg-[#16181d] border border-[#2b2f36] rounded-2xl p-8 shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#ffce00] to-transparent opacity-50"></div>
-            
-            <form className="space-y-5" onSubmit={handleRegister}>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[12px] font-black uppercase tracking-widest text-[#5f6368] ml-1">First Name</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none transition-colors group-focus-within:text-[#ffce00]">
-                      <User className="h-4 w-4 text-[#5f6368]" />
-                    </div>
-                    <input
-                      type="text" name="firstName" required
-                      value={formData.firstName} onChange={handleChange}
-                      className="block w-full pl-10 pr-4 py-3 bg-[#0c0d10] border border-[#2b2f36] rounded-xl text-white text-sm placeholder:text-[#5f6368] outline-none transition-all focus:border-[#ffce00]/50 focus:ring-4 focus:ring-[#ffce00]/5"
-                      placeholder="First name"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[12px] font-black uppercase tracking-widest text-[#5f6368] ml-1">Last Name</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none transition-colors group-focus-within:text-[#ffce00]">
-                      <User className="h-4 w-4 text-[#5f6368]" />
-                    </div>
-                    <input
-                      type="text" name="lastName" required
-                      value={formData.lastName} onChange={handleChange}
-                      className="block w-full pl-10 pr-4 py-3 bg-[#0c0d10] border border-[#2b2f36] rounded-xl text-white text-sm placeholder:text-[#5f6368] outline-none transition-all focus:border-[#ffce00]/50 focus:ring-4 focus:ring-[#ffce00]/5"
-                      placeholder="Last name"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-black uppercase tracking-widest text-[#5f6368] ml-1">Email</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none transition-colors group-focus-within:text-[#ffce00]">
-                    <Mail className="h-4 w-4 text-[#5f6368]" />
-                  </div>
-                  <input
-                    type="email" name="email" required
-                    value={formData.email} onChange={handleChange}
-                    className="block w-full pl-10 pr-4 py-3 bg-[#0c0d10] border border-[#2b2f36] rounded-xl text-white text-sm placeholder:text-[#5f6368] outline-none transition-all focus:border-[#ffce00]/50 focus:ring-4 focus:ring-[#ffce00]/5"
-                    placeholder="Enter your email"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-black uppercase tracking-widest text-[#5f6368] ml-1">Password</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none transition-colors group-focus-within:text-[#ffce00]">
-                    <Lock className="h-4 w-4 text-[#5f6368]" />
-                  </div>
-                  <input
-                    type="password" name="password" required
-                    value={formData.password} onChange={handleChange}
-                    className="block w-full pl-10 pr-4 py-3 bg-[#0c0d10] border border-[#2b2f36] rounded-xl text-white text-sm placeholder:text-[#5f6368] outline-none transition-all focus:border-[#ffce00]/50 focus:ring-4 focus:ring-[#ffce00]/5"
-                    placeholder="Create a password"
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="bg-[#d6344d]/10 border border-[#d6344d]/20 rounded-lg p-3 flex items-start gap-2 animate-in fade-in zoom-in duration-200">
-                  <span className="text-[#d6344d] text-xs font-semibold leading-relaxed">{error}</span>
-                </div>
-              )}
-
-              <Button 
-                type="submit" 
-                disabled={loading} 
-                className="w-full h-12 bg-[#ffce00] hover:bg-[#e6bb00] text-black font-black uppercase tracking-widest text-[13px] rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-[#ffce00]/10 flex items-center justify-center gap-2"
-              >
-                {loading ? 'Creating Account...' : 'Open Account'}
-                {!loading && <ArrowRight className="h-4 w-4" />}
-              </Button>
-
-              <div className="pt-2 text-center text-[13px] text-[#848e9c]">
-                By registering, you agree to our <button type="button" className="text-[#ffce00] font-bold hover:underline">Terms of Service</button>
-              </div>
-
-              <div className="pt-2 text-center border-t border-[#2b2f36] mt-4">
-                <p className="text-[13px] text-[#848e9c] mt-4">
-                  Already have an account? <Link to="/login" className="text-[#ffce00] font-black hover:underline transition-all">Sign in here</Link>
-                </p>
-              </div>
-            </form>
-          </div>
-
-          <div className="mt-8 flex items-center justify-center gap-6 text-[#5f6368]">
-             <div className="flex items-center gap-1.5">
-               <ShieldCheck className="h-3.5 w-3.5" />
-               <span className="text-[10px] font-black uppercase tracking-widest">Regulated</span>
-             </div>
-             <div className="flex items-center gap-1.5">
-               <Globe className="h-3.5 w-3.5" />
-               <span className="text-[10px] font-black uppercase tracking-widest">Global Support</span>
-             </div>
-          </div>
+    <div className="min-h-screen bg-white flex flex-col font-sans">
+      {/* Header */}
+      <header className="h-[64px] border-b border-[#E9ECEF] flex items-center justify-between px-6">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-[#FFD700] rounded flex items-center justify-center font-bold text-[10px]">ex</div>
+          <span className="text-xl font-bold tracking-tight text-black">exness</span>
         </div>
-      </div>
-      
-      {/* Background decorations */}
-      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#ffce00]/5 blur-[120px] rounded-full pointer-events-none"></div>
-      <div className="fixed bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-[#1e75e4]/5 blur-[100px] rounded-full pointer-events-none"></div>
+        <div className="flex items-center gap-4">
+          <button className="p-2 hover:bg-gray-100 rounded-full">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          </button>
+        </div>
+      </header>
+
+      <main className="flex-1 flex flex-col items-center pt-12 px-6">
+        <h1 className="text-[32px] font-bold text-[#212529] mb-8">Welcome to Exness</h1>
+
+        <div className="w-full max-w-[440px]">
+          {/* Tabs */}
+          <div className="flex border-b border-[#E9ECEF] mb-8">
+            <Link to="/login" className="flex-1 pb-4 text-sm font-semibold text-[#848e9c] hover:text-black transition-all text-center">
+              Sign in
+            </Link>
+            <button className="flex-1 pb-4 text-sm font-semibold text-black border-b-2 border-black transition-all">
+              Create an account
+            </button>
+          </div>
+
+          <form onSubmit={handleRegister} className="space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-[#5f6368]">First name</label>
+                <input
+                  type="text" name="firstName" required
+                  value={formData.firstName} onChange={handleChange}
+                  className="w-full h-[48px] px-4 border border-[#CED4DA] rounded-lg focus:border-black outline-none transition-all text-black"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[13px] font-medium text-[#5f6368]">Last name</label>
+                <input
+                  type="text" name="lastName" required
+                  value={formData.lastName} onChange={handleChange}
+                  className="w-full h-[48px] px-4 border border-[#CED4DA] rounded-lg focus:border-black outline-none transition-all text-black"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[13px] font-medium text-[#5f6368]">Your email address</label>
+              <input
+                type="email" name="email" required
+                value={formData.email} onChange={handleChange}
+                className="w-full h-[48px] px-4 border border-[#CED4DA] rounded-lg focus:border-black outline-none transition-all text-black"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[13px] font-medium text-[#5f6368]">Create a password</label>
+              <input
+                type="password" name="password" required
+                value={formData.password} onChange={handleChange}
+                className="w-full h-[48px] px-4 border border-[#CED4DA] rounded-lg focus:border-black outline-none transition-all text-black"
+              />
+            </div>
+
+            {error && <p className="text-[#D6344D] text-[13px]">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-[48px] bg-[#FFD700] hover:bg-[#F2CC00] text-black font-semibold rounded-lg transition-colors mt-4"
+            >
+              {loading ? 'Creating account...' : 'Create an account'}
+            </button>
+
+            <div className="text-center pt-4 text-[13px] text-[#848e9c]">
+              By registering, you agree to our <button type="button" className="text-[#007BFF] font-medium hover:underline">Terms of Service</button>
+            </div>
+          </form>
+        </div>
+      </main>
+
+      <footer className="mt-16 px-6 pb-12 max-w-[1200px] mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-8 text-[11px] leading-relaxed text-[#848e9c]">
+        <div className="space-y-4">
+          <p>Vanvest Limited is registered and regulated by the Financial Services Commission of the Republic of Vanuatu under registration number 700276 and has its registered office at Law Partners House, Kumul Highway, Port Vila, Vanuatu.</p>
+          <p>Risk Warning: Online Forex/CFDs are complex instruments and come with a high risk of losing money rapidly due to leverage.</p>
+        </div>
+        <div className="flex flex-col md:items-end gap-2">
+          <p>© 2008-2026 Exness</p>
+        </div>
+      </footer>
     </div>
   );
 }

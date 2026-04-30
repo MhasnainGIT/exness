@@ -78,8 +78,8 @@ class PriceService extends EventEmitter {
     
     if (this.sockets.has(upperSymbol)) return;
 
-    // Fetch history first
-    this.fetchHistory(internalSymbol, '1m', 300);
+    // Fetch history first (overwriting 1000 bars to ensure we clean up all bad data)
+    this.fetchHistory(internalSymbol, '1m', 1000);
     this.fetchHistory(internalSymbol, '1h', 100);
 
     const streams = [
@@ -134,13 +134,18 @@ class PriceService extends EventEmitter {
       };
 
       // SANITIZATION: Drop bad websocket ticks (zeros or NaNs) immediately
-      if (!priceData.bid || !priceData.ask || isNaN(priceData.bid) || priceData.bid <= 0) return;
+      if (!priceData.bid || !priceData.ask || isNaN(priceData.bid) || priceData.bid <= 0) {
+        console.warn(`[PriceService] Rejected zero/invalid tick for ${symbol}`);
+        return;
+      }
 
-      // Outlier Protection: Reject flash spikes > 10% comparing bid to last known good price
+      // Outlier Protection: Reject flash spikes > 5% comparing bid to last known good price
       const lastKnown = this.getLivePrice(symbol);
       if (lastKnown && lastKnown.bid > 0) {
-         if (Math.abs(priceData.bid - lastKnown.bid) / lastKnown.bid > 0.10) {
-            return; // Ignore ridiculous flash crashes/spikes
+         const change = Math.abs(priceData.bid - lastKnown.bid) / lastKnown.bid;
+         if (change > 0.05) {
+            console.warn(`[PriceService] Rejected outlier tick for ${symbol}: ${priceData.bid} (was ${lastKnown.bid}, ${ (change*100).toFixed(2)}% change)`);
+            return; 
          }
       }
 
@@ -193,3 +198,4 @@ class PriceService extends EventEmitter {
 
 const priceService = new PriceService();
 module.exports = priceService;
+module.exports.SYMBOL_MAP = SYMBOL_MAP;

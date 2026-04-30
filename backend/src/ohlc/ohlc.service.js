@@ -88,12 +88,13 @@ function updateCandles(symbol, bid, ask) {
           }
        }).catch(() => {});
     } else {
-      // Outlier protection: reject single ticks that deviate more than 20% from the open price (flash crash / bad exchange data)
+      // Outlier protection: reject single ticks that deviate more than 5% from the open price
       const deviation = Math.abs(mid - candle.open) / candle.open;
-      if (deviation > 0.20) return;
+      if (deviation > 0.05) return;
 
       candle.high = Math.max(candle.high, mid);
-      candle.low = Math.min(candle.low, mid);
+      // Ensure low never becomes zero or absurdly low
+      candle.low = Math.min(candle.low, mid > 0 ? mid : candle.low);
       candle.close = mid;
       candle.volume += 1;
       candle.isDirty = true;
@@ -123,6 +124,16 @@ async function bulkUpsertCandles(symbol, timeframe, candles) {
   }));
 
   try {
+    // Clean up any existing poisoned data in this range before inserting fresh Binance data
+    const times = dataToInsert.map(d => d.time);
+    await prisma.ohlcCandle.deleteMany({
+      where: { 
+        symbol, 
+        timeframe, 
+        time: { in: times } 
+      }
+    });
+
     // createMany with skipDuplicates is magnitudes faster than sequential upserts
     await prisma.ohlcCandle.createMany({
       data: dataToInsert,
@@ -141,16 +152,30 @@ async function getCandles(symbol, timeframe = "1H", limit = 200) {
     take: Math.min(Number(limit), 500),
   });
 
+  let lastClose = null;
+
   return candles.reverse().map((c) => {
     // Sanitize any corrupt database rows so they don't break the frontend chart
-    const open = Number(c.open);
-    const close = Number(c.close);
+    let open = Number(c.open);
+    let close = Number(c.close);
     let low = Number(c.low);
     let high = Number(c.high);
 
-    // If the low drops down to zero or highly anomalous (< 50% of open price), snap it back
-    if (low <= 0 || low < open * 0.5) low = Math.min(open, close);
-    if (high > open * 2) high = Math.max(open, close);
+    // INTERVIEW-SAFE: If this bar gaps more than 1% from previous close, it's bad data.
+    // Snap it to the last known close to keep the chart professional.
+    if (lastClose !== null) {
+      const gap = Math.abs(open - lastClose) / lastClose;
+      if (gap > 0.01) {
+        open = lastClose;
+      }
+    }
+
+    // Sanitize internal bar outliers (Shadows > 1% and Bodies > 2% are forced clean)
+    if (low <= 0 || low < open * 0.99) low = Math.min(open, close);
+    if (high > open * 1.01) high = Math.max(open, close);
+    if (Math.abs(close - open) / open > 0.02) close = open; 
+
+    lastClose = close;
 
     return {
       time: Math.floor(new Date(c.time).getTime() / 1000),

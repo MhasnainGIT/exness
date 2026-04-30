@@ -29,16 +29,18 @@ async function tickAllInstruments() {
     tickCount++;
     const instruments = await prisma.instrument.findMany({ where: { isActive: true } });
     const binanceTracked = new Set(priceService.subscribedSymbols);
+    const { SYMBOL_MAP } = require("../services/priceService");
 
     const updatePromises = instruments.map(async (inst) => {
       // Skip synthetic generation for symbols handled by Binance
-      if (binanceTracked.has(inst.symbol) || binanceTracked.has(inst.symbol + 'T')) {
+      if (SYMBOL_MAP[inst.symbol]) {
          return;
       }
 
       const bid = Number(inst.bid);
       const spread = Number(inst.spread);
-      const drift = (Math.random() - 0.5) * spread * 0.5;
+      // REDUCE DRIFT: 0.15 multiplier for professional, smoother movement
+      const drift = (Math.random() - 0.5) * spread * 0.15;
       const nextBid = roundPrice(Math.max(0.00001, bid + drift));
       const nextAsk = roundPrice(nextBid + spread);
 
@@ -61,8 +63,8 @@ async function tickAllInstruments() {
       // Build OHLC candles from every tick
       updateCandles(inst.symbol, nextBid, nextAsk);
 
-      // SLOW PATH: Update DB every 2 seconds (4 ticks @ 500ms)
-      if (tickCount % 4 === 0) {
+      // SLOW PATH: Update DB every 2 seconds (10 ticks @ 200ms)
+      if (tickCount % 10 === 0) {
         return prisma.instrument.update({
           where: { id: inst.id },
           data: { bid: nextBid, ask: nextAsk },
@@ -80,7 +82,8 @@ function setupWebSocket(server) {
   const wss = new WebSocket.Server({ server, path: "/ws" });
   wssRef = wss;
 
-  const tickInterval = setInterval(tickAllInstruments, 1000);
+  // Faster tick interval: 200ms
+  const tickInterval = setInterval(tickAllInstruments, 200);
 
   wss.on("connection", (ws) => {
     const subscriptions = new Set();

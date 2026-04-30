@@ -45,6 +45,12 @@ async function closePositionInternal(tx, position, closePrice, reason) {
         description: `${reason}: ${position.positionNumber} closed at ${closePrice}`,
       },
     });
+
+    // Update the wallet balance itself
+    await tx.wallet.update({
+      where: { id: acc.walletId },
+      data: { balance: { increment: realizedPnl } },
+    });
   }
 
   await tx.auditLog.create({

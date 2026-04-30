@@ -13,7 +13,7 @@ export function Layout({ children }: LayoutProps) {
   const { showToast } = useUi();
 
   return (
-    <div className="flex h-screen w-full bg-[#f7f8fa] text-[#1a1b20] overflow-hidden">
+    <div className="flex h-screen w-full bg-[#F8F9FA] text-[#212529] overflow-hidden">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <div className="flex flex-1 flex-col transition-all duration-300 overflow-hidden min-w-0">
         <TopNav />

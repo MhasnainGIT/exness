@@ -26,6 +26,7 @@ import { ProfilePage } from './components/dashboard/ProfilePage';
 import { Terminal } from './components/terminal/Terminal';
 import { Login } from './components/auth/Login';
 import { Register } from './components/auth/Register';
+import { Landing } from './components/auth/Landing';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { MarketProvider } from './contexts/MarketContext';
@@ -38,6 +39,7 @@ export default function App() {
         <MarketProvider>
           <Router>
             <Routes>
+              <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               

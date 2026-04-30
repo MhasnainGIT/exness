@@ -1,4 +1,3 @@
-/**
  * Trading Routes - API endpoints for real-time trading
  */
 const express = require('express');
