@@ -85,6 +85,11 @@ function setupWebSocket(server) {
   // Faster tick interval: 200ms
   const tickInterval = setInterval(tickAllInstruments, 200);
 
+  // Instant Chart Updates for Binance Symbols
+  priceService.on('price', (tick) => {
+    updateCandles(tick.symbol, tick.bid, tick.ask);
+  });
+
   wss.on("connection", (ws) => {
     const subscriptions = new Set();
     ws.isAlive = true;

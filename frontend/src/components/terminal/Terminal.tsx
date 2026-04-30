@@ -85,9 +85,39 @@ export function Terminal() {
   // Candle Polling
   const fetchCandles = useCallback(async (autoFit = false) => {
     if (!activeSymbol) return;
+    
+    // BINANCE DIRECT FETCH for Crypto symbols (Speed Boost)
+    const cryptoMap: Record<string, string> = {
+      'BTCUSD': 'BTCUSDT', 'ETHUSD': 'ETHUSDT', 'BNBUSD': 'BNBUSDT',
+      'SOLUSD': 'SOLUSDT', 'XRPUSD': 'XRPUSDT', 'DOGEUSD': 'DOGEUSDT',
+      'ADAUSD': 'ADAUSDT', 'DOTUSD': 'DOTUSDT'
+    };
+
+    const binanceSymbol = cryptoMap[activeSymbol];
+    const binanceTf = timeframe.toLowerCase() === '1h' ? '1h' : '1m';
+
     try {
-      const res = await fetchApi(`/market/candles/${activeSymbol}?timeframe=${timeframe}&limit=200`);
-      const candleData = Array.isArray(res) ? res : (res?.data || []);
+      let candleData = [];
+      if (binanceSymbol) {
+        // Fetch directly from Binance API
+        const response = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${binanceTf}&limit=500`);
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          candleData = data.map((d: any) => ({
+            time: Math.floor(d[0] / 1000),
+            open: parseFloat(d[1]),
+            high: parseFloat(d[2]),
+            low: parseFloat(d[3]),
+            close: parseFloat(d[4]),
+            volume: parseFloat(d[5])
+          }));
+        }
+      } else {
+        // Fallback to backend for Non-Binance symbols (Gold, Oil, etc.)
+        const res = await fetchApi(`/market/candles/${activeSymbol}?timeframe=${timeframe}&limit=200`);
+        candleData = Array.isArray(res) ? res : (res?.data || []);
+      }
+
       if (candleData.length > 0) {
         setCandles(candleData);
         if (autoFit) setTimeout(() => chartRef.current?.autoFit(), 100);

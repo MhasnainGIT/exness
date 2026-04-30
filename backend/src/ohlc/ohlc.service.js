@@ -62,32 +62,15 @@ function updateCandles(symbol, bid, ask) {
 
     let candle = candleBuffer.get(key);
     
-    if (!candle || candle.time.getTime() !== barTime.getTime()) {
-       candle = { 
-         symbol, timeframe: tf, time: barTime, 
-         open: mid, high: mid, low: mid, close: mid, volume: 1,
-         isDirty: true
-       };
-       candleBuffer.set(key, candle);
-
-       // Async fetch from DB to align if the candle was already created by Binance sync
-       prisma.ohlcCandle.findUnique({
-          where: { symbol_timeframe_time: { symbol, timeframe: tf, time: barTime } }
-       }).then(existing => {
-          if (existing && candleBuffer.get(key) === candle) {
-             const exOpen = Number(existing.open) || mid;
-             const exHigh = Number(existing.high) || mid;
-             const exLow = Number(existing.low) || mid;
-             
-             candle.open = exOpen;
-             candle.high = Math.max(exHigh, candle.high);
-             // Prevent legacy zero-values in DB from dragging down the live chart low
-             candle.low = exLow > 0 ? Math.min(exLow, candle.low) : candle.low;
-             candle.volume = existing.volume + candle.volume;
-             candle.isDirty = true;
-          }
-       }).catch(() => {});
-    } else {
+     if (!candle || candle.time.getTime() !== barTime.getTime()) {
+        candle = { 
+          symbol, timeframe: tf, time: barTime, 
+          open: mid, high: mid, low: mid, close: mid, volume: 1,
+          isDirty: true
+        };
+        candleBuffer.set(key, candle);
+        // Removed DB alignment to ensure 100% real-time data only
+     } else {
       // Outlier protection: reject single ticks that deviate more than 5% from the open price
       const deviation = Math.abs(mid - candle.open) / candle.open;
       if (deviation > 0.05) return;

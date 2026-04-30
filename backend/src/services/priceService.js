@@ -77,10 +77,8 @@ class PriceService extends EventEmitter {
     const internalSymbol = INVERSE_SYMBOL_MAP[upperSymbol] || symbol;
     
     if (this.sockets.has(upperSymbol)) return;
-
-    // Fetch history first (overwriting 1000 bars to ensure we clean up all bad data)
-    this.fetchHistory(internalSymbol, '1m', 1000);
-    this.fetchHistory(internalSymbol, '1h', 100);
+    
+    // History sync disabled for strictly real-time feed
 
     const streams = [
       `${binanceSymbol.toLowerCase()}@kline_1m`,
